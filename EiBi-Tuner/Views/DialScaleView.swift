@@ -67,8 +67,8 @@ struct DialScaleView: View {
                         vm.scrub(toKHz: start + delta)
                     }
                     .onEnded { _ in
-                        vm.tune(toKHz: vm.currentFreqKHz)
                         dragStartFreq = nil
+                        vm.endTuneGesture()
                     }
             )
             .onContinuousHover { phase in

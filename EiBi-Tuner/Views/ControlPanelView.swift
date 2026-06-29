@@ -25,6 +25,9 @@ struct ControlPanelView: View {
                 PushButton(label: "ACTIVE", sublabel: "now", isOn: vm.activeOnly) {
                     vm.activeOnly.toggle()
                 }
+                PushButton(label: "SNAP", sublabel: "station", isOn: vm.snapToStation) {
+                    vm.snapToStation.toggle()
+                }
                 connection
                 Spacer()
                 Button { vm.presentOpenPanel() } label: {

@@ -72,6 +72,10 @@ final class RadioViewModel {
     var hoverDial = false
     var hoverKnob = false
 
+    /// When on, releasing the tuning knob / dial or stopping the wheel snaps
+    /// to the nearest station. On by default.
+    var snapToStation = true
+
     // MARK: - Frequency span of the loaded data (for the dial scale)
 
     private(set) var minFreqKHz: Double = 150
@@ -84,6 +88,7 @@ final class RadioViewModel {
     private var suppressVolumeReadUntil: Date = .distantPast
     private var suppressAgcReadUntil: Date = .distantPast
     private var lastMinute: Int = -1
+    private var listRefreshCounter = 0
 
     // Discovered FLRIG method names (volume / AGC vary by rig build).
     private var methodsLoaded = false
@@ -121,6 +126,7 @@ final class RadioViewModel {
 
     private var scrollMonitor: Any?
     private let scrollStepKHz = 1.0
+    private var scrollIdleTask: Task<Void, Never>?
 
     private func installScrollMonitor() {
         guard scrollMonitor == nil else { return }
@@ -139,6 +145,13 @@ final class RadioViewModel {
         guard hoverDial || hoverKnob, deltaY != 0 else { return false }
         let direction: Double = deltaY > 0 ? 1 : -1
         scrub(toKHz: currentFreqKHz + direction * scrollStepKHz)
+        // Snap (or commit) shortly after the wheel stops moving.
+        scrollIdleTask?.cancel()
+        scrollIdleTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard !Task.isCancelled else { return }
+            self?.endTuneGesture()
+        }
         return true
     }
 
@@ -164,8 +177,13 @@ final class RadioViewModel {
             smeter = await rig.getSMeter() ?? max(0, smeter - 8)
             if let m = await rig.getMode() { mode = m }
             if let bw = await rig.getBandwidth() { bandwidth = bw }
-            if availableModes.isEmpty { availableModes = await rig.getModes() }
-            if availableBandwidths.isEmpty { availableBandwidths = await rig.getBandwidths() }
+            // Refresh the mode/bandwidth lists when first seen and every ~10 s
+            // afterwards, so they update if the rig is changed in FLRIG.
+            listRefreshCounter += 1
+            if availableModes.isEmpty || availableBandwidths.isEmpty || listRefreshCounter % 10 == 0 {
+                let m = await rig.getModes(); if !m.isEmpty { availableModes = m }
+                let b = await rig.getBandwidths(); if !b.isEmpty { availableBandwidths = b }
+            }
 
             // Discover optional volume / AGC support once.
             if !methodsLoaded {
@@ -227,9 +245,34 @@ final class RadioViewModel {
         tune(toKHz: currentFreqKHz + delta)
     }
 
+    /// The displayed station closest to the current dial frequency.
+    var nearestStation: Station? {
+        displayedStations.min {
+            abs($0.freqKHz - currentFreqKHz) < abs($1.freqKHz - currentFreqKHz)
+        }
+    }
+
+    /// Called when a tuning gesture (knob/dial drag, or wheel) finishes:
+    /// snaps to the nearest station when enabled, otherwise commits the
+    /// current frequency precisely to FLRIG.
+    func endTuneGesture() {
+        if snapToStation, let s = nearestStation {
+            tune(toKHz: s.freqKHz)
+        } else {
+            tune(toKHz: currentFreqKHz)
+        }
+    }
+
     func setMode(_ m: String) {
         mode = m
         Task { await client.setMode(m) }
+    }
+
+    /// Whether the rig exposes a given mode (used to enable/grey quick buttons).
+    /// When the list is unknown (offline) all modes are allowed.
+    func modeAvailable(_ m: String) -> Bool {
+        availableModes.isEmpty
+            || availableModes.contains { $0.caseInsensitiveCompare(m) == .orderedSame }
     }
 
     func setBandwidth(_ bw: String) {

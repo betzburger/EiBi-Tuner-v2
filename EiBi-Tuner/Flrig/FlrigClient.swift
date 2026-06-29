@@ -47,7 +47,10 @@ nonisolated struct FlrigClient: Sendable {
 
     func getModes() async -> [String] { await callArray("rig.get_modes") }
 
-    func getBandwidth() async -> String? { await callScalar("rig.get_bw") }
+    func getBandwidth() async -> String? {
+        // FLRIG's rig.get_bw returns an array (e.g. [width, shift]); take the first.
+        await callArray("rig.get_bw").first
+    }
 
     func setBandwidth(_ bw: String) async {
         _ = await call("rig.set_bandwidth", params: [.string(bw)])
@@ -161,7 +164,8 @@ nonisolated struct FlrigClient: Sendable {
         }
         return matches(#"<value>(.*?)</value>"#, in: region, options: [.dotMatchesLineSeparators])
             .map(clean)
-            .filter { !$0.isEmpty }
+            // Drop empties and any entry still holding markup (nested arrays).
+            .filter { !$0.isEmpty && !$0.contains("<") && !$0.contains(">") }
     }
 
     /// Strips XML-RPC type wrappers and unescapes the basic entities.

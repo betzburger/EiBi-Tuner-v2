@@ -65,7 +65,7 @@ struct ContentView: View {
 private struct BrandBar: View {
     @Bindable var vm: RadioViewModel
 
-    private let bands = ["LW", "MW", "KW", "UKW"]
+    private let quickModes = ["USB", "LSB", "AM", "CW"]
 
     var body: some View {
         HStack(alignment: .center) {
@@ -80,28 +80,52 @@ private struct BrandBar: View {
                 VStack(alignment: .leading, spacing: -2) {
                     Text("EiBi · Tuner").font(.system(size: 22, weight: .heavy, design: .serif))
                         .foregroundStyle(Theme.ivory)
-                    Text("SHORTWAVE RECEIVER · DD2ZG").font(Theme.label(9)).tracking(2)
+                    Text("SHORTWAVE RECEIVER").font(Theme.label(9)).tracking(2)
                         .foregroundStyle(Theme.amberDim)
                 }
             }
 
             Spacer()
 
-            // Decorative band selector strip (echoes the old set's pushbuttons).
+            // Quick mode buttons (replace the old decorative band strip).
             HStack(spacing: 6) {
-                ForEach(bands, id: \.self) { b in
-                    Text(b).font(Theme.label(11)).tracking(1)
-                        .foregroundStyle(Theme.ivory.opacity(0.8))
-                        .frame(width: 40, height: 26)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(LinearGradient(colors: [Theme.ivory.opacity(0.18), .black.opacity(0.35)],
-                                                     startPoint: .top, endPoint: .bottom))
-                                .overlay(RoundedRectangle(cornerRadius: 5)
-                                    .strokeBorder(.black.opacity(0.4), lineWidth: 1)))
+                ForEach(quickModes, id: \.self) { m in
+                    ModeButton(label: m,
+                               isActive: vm.mode.caseInsensitiveCompare(m) == .orderedSame,
+                               enabled: vm.modeAvailable(m)) { vm.setMode(m) }
                 }
             }
         }
+    }
+}
+
+/// A compact lit mode button for the brand bar.
+private struct ModeButton: View {
+    let label: String
+    let isActive: Bool
+    let enabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label).font(Theme.label(11)).tracking(1)
+                .foregroundStyle(isActive ? Color.black.opacity(0.85) : Theme.ivory.opacity(0.85))
+                .frame(width: 44, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(isActive
+                              ? LinearGradient(colors: [Theme.amberBright, Theme.amber],
+                                               startPoint: .top, endPoint: .bottom)
+                              : LinearGradient(colors: [Theme.ivory.opacity(0.18), .black.opacity(0.35)],
+                                               startPoint: .top, endPoint: .bottom))
+                        .overlay(RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(.black.opacity(0.4), lineWidth: 1))
+                        .shadow(color: isActive ? Theme.amber.opacity(0.7) : .clear, radius: 5)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.4)
     }
 }
 

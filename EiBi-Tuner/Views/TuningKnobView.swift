@@ -72,7 +72,7 @@ struct TuningKnobView: View {
                     .onEnded { _ in
                         lastAngle = nil
                         knobFreq = nil
-                        vm.tune(toKHz: vm.currentFreqKHz)
+                        vm.endTuneGesture()
                     }
             )
             .onContinuousHover { phase in
