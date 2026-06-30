@@ -413,17 +413,6 @@ final class RadioViewModel {
         }
     }
 
-    /// All displayed stations sharing the channel nearest the dial, plus that
-    /// channel's frequency — for the schedule timeline. Sorted by start time.
-    func channelStations() -> (freq: Double, stations: [Station]) {
-        guard let nearest = nearestStation else { return (currentFreqKHz, []) }
-        let f = nearest.freqKHz
-        let list = displayedStations
-            .filter { abs($0.freqKHz - f) < 0.05 }
-            .sorted { ($0.minuteRange?.start ?? 0) < ($1.minuteRange?.start ?? 0) }
-        return (f, list)
-    }
-
     /// Called when a tuning gesture (knob/dial drag, or wheel) finishes:
     /// snaps to the nearest station when enabled, otherwise commits the
     /// current frequency precisely to FLRIG.

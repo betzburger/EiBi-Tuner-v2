@@ -34,20 +34,6 @@ nonisolated struct Station: Identifiable, Hashable, Sendable {
     /// Frequency formatted the way the Python app printed it ("%.2f").
     var freqText: String { String(format: "%.2f", freqKHz) }
 
-    /// The broadcast window as (startMinute, endMinute) in UTC minutes-of-day.
-    /// Returns (0, 1440) for an all-day/empty window; `end <= start` means the
-    /// window runs past midnight. nil when the time string can't be parsed.
-    var minuteRange: (start: Int, end: Int)? {
-        let r = time.trimmingCharacters(in: .whitespaces)
-        if r.isEmpty || r == "0000-2400" { return (0, 1440) }
-        let parts = r.split(separator: "-", maxSplits: 1).map(String.init)
-        guard parts.count == 2, parts[0].count >= 4, parts[1].count >= 4,
-              let sh = Int(parts[0].prefix(2)), let sm = Int(parts[0].dropFirst(2).prefix(2)),
-              let eh = Int(parts[1].prefix(2)), let em = Int(parts[1].dropFirst(2).prefix(2))
-        else { return nil }
-        return (sh * 60 + sm, eh * 60 + em)
-    }
-
     /// A compact one-line haystack used for free-text search (matches the
     /// Python behaviour of searching the rendered row / all values).
     var searchHaystack: String {
