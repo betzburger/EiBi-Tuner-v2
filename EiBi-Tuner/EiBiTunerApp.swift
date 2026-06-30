@@ -29,16 +29,34 @@ struct EiBiTunerApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About EiBi-Tuner") { showAbout() }
             }
+            CommandGroup(replacing: .help) {
+                HelpMenuCommands()
+            }
         }
+
+        // Dedicated, reusable Help window opened from the HELP button / menu.
+        Window("EiBi-Tuner · Hilfe", id: "help") {
+            HelpView()
+        }
+        .windowResizability(.contentMinSize)
     }
 
     private func showAbout() {
         NSApplication.shared.orderFrontStandardAboutPanel(options: [
             .applicationName: "EiBi-Tuner",
-            .applicationVersion: "1.0",
+            .applicationVersion: "2.0",
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"):
-                "A retro shortwave tuner for FLRIG.\nBased on eibi_tuner by Peter Betz (DD2ZG).",
+                "A retro shortwave tuner for FLRIG.\nVersion 2.0 · created by Peter Betz (DD2ZG).",
         ])
+    }
+}
+
+/// The Help menu entry; lives in a view so it can use the openWindow action.
+private struct HelpMenuCommands: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Button(AppLanguage.t("EiBi-Tuner Hilfe", "EiBi-Tuner Help")) { openWindow(id: "help") }
+            .keyboardShortcut("?", modifiers: .command)
     }
 }
 

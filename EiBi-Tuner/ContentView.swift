@@ -80,8 +80,13 @@ private struct BrandBar: View {
                 VStack(alignment: .leading, spacing: -2) {
                     Text("EiBi · Tuner").font(.system(size: 22, weight: .heavy, design: .serif))
                         .foregroundStyle(Theme.ivory)
-                    Text("SHORTWAVE RECEIVER").font(Theme.label(9)).tracking(2)
-                        .foregroundStyle(Theme.amberDim)
+                    HStack(spacing: 6) {
+                        Text("SHORTWAVE RECEIVER").font(Theme.label(9)).tracking(2)
+                            .foregroundStyle(Theme.amberDim)
+                        Text("· v2.0 · DD2ZG")
+                            .font(.system(size: 8, weight: .semibold, design: .serif))
+                            .foregroundStyle(Theme.amberDim.opacity(0.7))
+                    }
                 }
             }
 

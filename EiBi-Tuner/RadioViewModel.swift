@@ -39,7 +39,12 @@ final class RadioViewModel {
 
     var searchText = "" { didSet { recomputeDisplayed() } }
     var targetFilter = "" { didSet { recomputeDisplayed() } }
-    var activeOnly = false { didSet { recomputeDisplayed() } }
+    var activeOnly = false {
+        didSet {
+            UserDefaults.standard.set(activeOnly, forKey: "activeOnly")
+            recomputeDisplayed()
+        }
+    }
 
     // MARK: - Rig state
 
@@ -74,7 +79,19 @@ final class RadioViewModel {
 
     /// When on, releasing the tuning knob / dial or stopping the wheel snaps
     /// to the nearest station. On by default.
-    var snapToStation = true
+    var snapToStation = true {
+        didSet { UserDefaults.standard.set(snapToStation, forKey: "snapToStation") }
+    }
+
+    // MARK: - Memory presets (persisted as JSON)
+
+    /// Number of freely-assignable preset slots shown in the Preset picker.
+    static let presetCount = 20
+
+    /// The user's preset slots. Writing the array re-persists the whole set.
+    var presets: [FrequencyPreset] = [] {
+        didSet { persistPresets() }
+    }
 
     // MARK: - Frequency span of the loaded data (for the dial scale)
 
@@ -98,8 +115,23 @@ final class RadioViewModel {
     private var agcSetMethod: String?
 
     init() {
-        host = UserDefaults.standard.string(forKey: "flrigHost") ?? "127.0.0.1"
-        port = UserDefaults.standard.string(forKey: "flrigPort") ?? "12345"
+        let defaults = UserDefaults.standard
+        host = defaults.string(forKey: "flrigHost") ?? "127.0.0.1"
+        port = defaults.string(forKey: "flrigPort") ?? "12345"
+
+        // Restore last session settings (assignments in init don't fire didSet,
+        // so these neither re-persist nor recompute before data is loaded).
+        activeOnly = defaults.bool(forKey: "activeOnly")
+        if defaults.object(forKey: "snapToStation") != nil {
+            snapToStation = defaults.bool(forKey: "snapToStation")
+        }
+        if let f = defaults.object(forKey: "lastFreqKHz") as? Double, f > 0 {
+            currentFreqKHz = f
+        }
+        if let m = defaults.string(forKey: "lastMode"), !m.isEmpty {
+            mode = m
+        }
+        presets = Self.loadPresets()
     }
 
     // MARK: - Lifecycle
@@ -220,6 +252,7 @@ final class RadioViewModel {
     func tune(toKHz khz: Double) {
         let clamped = min(max(khz, minFreqKHz), maxFreqKHz)
         currentFreqKHz = clamped
+        UserDefaults.standard.set(clamped, forKey: "lastFreqKHz")
         suppressVFOReadUntil = Date().addingTimeInterval(1.2)
         let hz = clamped * 1000
         Task { await client.setFrequency(hz) }
@@ -245,6 +278,49 @@ final class RadioViewModel {
         tune(toKHz: currentFreqKHz + delta)
     }
 
+    // MARK: - Band jumping
+
+    /// Jumps the dial to a meter band. Lands on the nearest real station inside
+    /// the band when the loaded schedule has one, otherwise on the band centre.
+    func tuneToBand(_ band: Band) {
+        let inBand = displayedStations.filter { $0.freqKHz >= band.loKHz && $0.freqKHz <= band.hiKHz }
+        if let nearest = inBand.min(by: {
+            abs($0.freqKHz - band.centerKHz) < abs($1.freqKHz - band.centerKHz)
+        }) {
+            tune(toKHz: nearest.freqKHz)
+        } else {
+            tune(toKHz: band.centerKHz)
+        }
+    }
+
+    // MARK: - Presets
+
+    /// Stores the current frequency (and mode) into a slot, keeping its name.
+    func savePreset(at index: Int) {
+        guard presets.indices.contains(index) else { return }
+        presets[index].freqKHz = currentFreqKHz
+        presets[index].mode = (mode == "—") ? nil : mode
+    }
+
+    /// Recalls a slot: tunes the dial and restores the mode when the rig has it.
+    func recallPreset(at index: Int) {
+        guard presets.indices.contains(index), let f = presets[index].freqKHz else { return }
+        tune(toKHz: f)
+        if let m = presets[index].mode, modeAvailable(m) { setMode(m) }
+    }
+
+    func renamePreset(at index: Int, to name: String) {
+        guard presets.indices.contains(index) else { return }
+        presets[index].name = name
+    }
+
+    /// Empties a slot but keeps its (renamed) label.
+    func clearPreset(at index: Int) {
+        guard presets.indices.contains(index) else { return }
+        presets[index].freqKHz = nil
+        presets[index].mode = nil
+    }
+
     /// The displayed station closest to the current dial frequency.
     var nearestStation: Station? {
         displayedStations.min {
@@ -265,6 +341,7 @@ final class RadioViewModel {
 
     func setMode(_ m: String) {
         mode = m
+        UserDefaults.standard.set(m, forKey: "lastMode")
         Task { await client.setMode(m) }
     }
 
@@ -433,5 +510,26 @@ final class RadioViewModel {
         guard FileManager.default.fileExists(atPath: cache.path),
               let name = UserDefaults.standard.string(forKey: "lastFileName") else { return }
         load(url: cache, remember: false, displayName: name)
+    }
+
+    // MARK: - Preset persistence
+
+    private static let presetsKey = "presets"
+
+    private func persistPresets() {
+        if let data = try? JSONEncoder().encode(presets) {
+            UserDefaults.standard.set(data, forKey: Self.presetsKey)
+        }
+    }
+
+    /// Loads the saved preset slots, padding/truncating to `presetCount` and
+    /// falling back to blank "P1…Pn" slots on first run.
+    private static func loadPresets() -> [FrequencyPreset] {
+        var slots = (1...presetCount).map { FrequencyPreset(name: "P\($0)", freqKHz: nil, mode: nil) }
+        if let data = UserDefaults.standard.data(forKey: presetsKey),
+           let decoded = try? JSONDecoder().decode([FrequencyPreset].self, from: data) {
+            for (i, saved) in decoded.prefix(presetCount).enumerated() { slots[i] = saved }
+        }
+        return slots
     }
 }

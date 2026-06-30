@@ -12,34 +12,40 @@ import SwiftUI
 struct ControlPanelView: View {
     @Bindable var vm: RadioViewModel
 
+    @Environment(\.openWindow) private var openWindow
+    @State private var showBands = false
+    @State private var showPresets = false
+
+    // Shared column geometry so the two fascia rows line up vertically:
+    // the readout / four-button column, and the right-hand TARGET / Open
+    // Schedule column, are the same width in both rows — which puts MODE
+    // above FLRIG and Open Schedule directly under TARGET.
+    private let leadingWidth: CGFloat = 300
+    private let trailingWidth: CGFloat = 250
+    private let columnGap: CGFloat = 16
+
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
+        VStack(spacing: 14) {
+            // Top row: readout · mode/bandwidth/agc · target/search
+            HStack(alignment: .center, spacing: columnGap) {
                 readout
-                Divider().frame(height: 46).overlay(Theme.brassDark)
+                    .frame(width: leadingWidth, alignment: .leading)
                 modeAndBandwidth
-                Spacer()
+                Spacer(minLength: 12)
                 filters
+                    .frame(width: trailingWidth, alignment: .leading)
             }
-            HStack(spacing: 14) {
-                PushButton(label: "ACTIVE", sublabel: "now", isOn: vm.activeOnly) {
-                    vm.activeOnly.toggle()
-                }
-                PushButton(label: "SNAP", sublabel: "station", isOn: vm.snapToStation) {
-                    vm.snapToStation.toggle()
-                }
+            // Bottom row: toggles/band/preset · flrig · help · open schedule
+            HStack(alignment: .center, spacing: columnGap) {
+                controlButtons
+                    .frame(width: leadingWidth, alignment: .leading)
                 connection
-                Spacer()
-                Button { vm.presentOpenPanel() } label: {
-                    Label("Open Schedule…", systemImage: "folder")
-                        .font(Theme.label(12))
+                Spacer(minLength: 12)
+                PushButton(label: "HELP", sublabel: "?", isOn: false) {
+                    openWindow(id: "help")
                 }
-                .buttonStyle(.borderless)
-                .foregroundStyle(Theme.ivory)
-                if let name = vm.loadedFileName {
-                    Text(name).font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(Theme.amberDim).lineLimit(1)
-                }
+                openSchedule
+                    .frame(width: trailingWidth, alignment: .leading)
             }
         }
         .padding(16)
@@ -49,6 +55,45 @@ struct ControlPanelView: View {
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(.black.opacity(0.4), lineWidth: 1))
         )
+    }
+
+    // MARK: Toggles / band / preset (bottom-left column)
+
+    private var controlButtons: some View {
+        HStack(spacing: 12) {
+            PushButton(label: "ACTIVE", sublabel: "now", isOn: vm.activeOnly) {
+                vm.activeOnly.toggle()
+            }
+            PushButton(label: "SNAP", sublabel: "station", isOn: vm.snapToStation) {
+                vm.snapToStation.toggle()
+            }
+            PushButton(label: "BAND", sublabel: "select", isOn: showBands) {
+                showBands.toggle()
+            }
+            .popover(isPresented: $showBands) { BandPickerView(vm: vm) }
+            PushButton(label: "PRESET", sublabel: "memory", isOn: showPresets) {
+                showPresets.toggle()
+            }
+            .popover(isPresented: $showPresets) { PresetPickerView(vm: vm) }
+        }
+    }
+
+    // MARK: Open schedule + loaded file name (bottom-right column)
+
+    private var openSchedule: some View {
+        HStack(spacing: 8) {
+            Button { vm.presentOpenPanel() } label: {
+                Label("Open Schedule…", systemImage: "folder")
+                    .font(Theme.label(12))
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Theme.ivory)
+            .fixedSize()
+            if let name = vm.loadedFileName {
+                Text(name).font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Theme.amberDim).lineLimit(1)
+            }
+        }
     }
 
     // MARK: Frequency readout + clock
@@ -70,7 +115,6 @@ struct ControlPanelView: View {
                     .foregroundStyle(Theme.amber.opacity(0.8))
             }
         }
-        .frame(minWidth: 230, alignment: .leading)
     }
 
     private var freqString: String {
@@ -87,7 +131,7 @@ struct ControlPanelView: View {
     // MARK: Mode + bandwidth
 
     private var modeAndBandwidth: some View {
-        HStack(spacing: 14) {
+        HStack(alignment: .top, spacing: 14) {
             SelectControl(title: "MODE",
                           value: vm.mode,
                           options: vm.availableModes,
@@ -116,6 +160,7 @@ struct ControlPanelView: View {
     private var connection: some View {
         HStack(spacing: 6) {
             Text("FLRIG").font(Theme.label(10)).foregroundStyle(Theme.ivory.opacity(0.7))
+                .fixedSize()
             RetroField(title: "HOST", text: $vm.host, width: 110)
             RetroField(title: "PORT", text: $vm.port, width: 56)
         }
