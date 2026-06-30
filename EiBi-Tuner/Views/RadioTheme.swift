@@ -9,13 +9,88 @@
 
 import SwiftUI
 
+/// The interchangeable part of the look: the accent ("backlight") colour family
+/// and the dial glow. The cabinet, brass and ivory stay shared across variants
+/// so every palette feels like the same radio with a different tube colour.
+nonisolated struct ThemePalette: Sendable {
+    let amber, amberBright, amberDeep, amberDim, activeGlow: Color
+
+    var lamp: RadialGradient {
+        RadialGradient(colors: [amber.opacity(0.55), amberDeep.opacity(0.18), .clear],
+                       center: .center, startRadius: 2, endRadius: 360)
+    }
+}
+
+extension ThemePalette {
+    static let amber = ThemePalette(
+        amber:       Color(red: 1.00, green: 0.69, blue: 0.31),
+        amberBright: Color(red: 1.00, green: 0.86, blue: 0.58),
+        amberDeep:   Color(red: 0.80, green: 0.43, blue: 0.13),
+        amberDim:    Color(red: 0.62, green: 0.36, blue: 0.12),
+        activeGlow:  Color(red: 1.00, green: 0.82, blue: 0.30))
+
+    static let green = ThemePalette(
+        amber:       Color(red: 0.46, green: 0.92, blue: 0.55),
+        amberBright: Color(red: 0.74, green: 1.00, blue: 0.80),
+        amberDeep:   Color(red: 0.16, green: 0.55, blue: 0.24),
+        amberDim:    Color(red: 0.26, green: 0.55, blue: 0.30),
+        activeGlow:  Color(red: 0.62, green: 1.00, blue: 0.66))
+
+    static let blue = ThemePalette(
+        amber:       Color(red: 0.40, green: 0.74, blue: 1.00),
+        amberBright: Color(red: 0.72, green: 0.89, blue: 1.00),
+        amberDeep:   Color(red: 0.13, green: 0.40, blue: 0.72),
+        amberDim:    Color(red: 0.26, green: 0.46, blue: 0.70),
+        activeGlow:  Color(red: 0.56, green: 0.86, blue: 1.00))
+
+    static let red = ThemePalette(
+        amber:       Color(red: 1.00, green: 0.46, blue: 0.40),
+        amberBright: Color(red: 1.00, green: 0.68, blue: 0.58),
+        amberDeep:   Color(red: 0.66, green: 0.18, blue: 0.13),
+        amberDim:    Color(red: 0.62, green: 0.26, blue: 0.20),
+        activeGlow:  Color(red: 1.00, green: 0.56, blue: 0.46))
+}
+
+/// User-selectable colour variants (persisted; see RadioViewModel.themeVariant).
+nonisolated enum ThemeVariant: String, CaseIterable, Identifiable, Sendable {
+    case amber, green, blue, red
+    var id: String { rawValue }
+    var palette: ThemePalette {
+        switch self {
+        case .amber: return .amber
+        case .green: return .green
+        case .blue:  return .blue
+        case .red:   return .red
+        }
+    }
+    var label: String {
+        switch self {
+        case .amber: return "Amber"
+        case .green: return "Green"
+        case .blue:  return "Blue"
+        case .red:   return "Red"
+        }
+    }
+}
+
+/// Which signal indicator is shown: the moving-coil S-meter or the green
+/// "magic eye" tuning tube (persisted; see RadioViewModel.meterStyle).
+nonisolated enum MeterStyle: String, CaseIterable, Sendable {
+    case sMeter, magicEye
+}
+
 enum Theme {
 
-    // MARK: Colours
-    static let amber       = Color(red: 1.00, green: 0.69, blue: 0.31)
-    static let amberBright = Color(red: 1.00, green: 0.86, blue: 0.58)
-    static let amberDeep   = Color(red: 0.80, green: 0.43, blue: 0.13)
-    static let amberDim    = Color(red: 0.62, green: 0.36, blue: 0.12)
+    /// The active palette. Swapped by RadioViewModel.themeVariant (always on the
+    /// main thread); views re-read it when the tree re-renders.
+    nonisolated(unsafe) static var current: ThemePalette = .amber
+
+    // MARK: Colours (accent family forwards to the active palette)
+    nonisolated static var amber: Color       { current.amber }
+    nonisolated static var amberBright: Color { current.amberBright }
+    nonisolated static var amberDeep: Color   { current.amberDeep }
+    nonisolated static var amberDim: Color    { current.amberDim }
+    nonisolated static var activeGlow: Color  { current.activeGlow }
 
     static let dialInk     = Color(red: 0.05, green: 0.040, blue: 0.022)
     static let dialInk2    = Color(red: 0.10, green: 0.075, blue: 0.035)
@@ -23,7 +98,6 @@ enum Theme {
     static let ivory       = Color(red: 0.93, green: 0.89, blue: 0.80)
     static let ivoryDark   = Color(red: 0.74, green: 0.69, blue: 0.58)
     static let pointer     = Color(red: 0.93, green: 0.27, blue: 0.18)
-    static let activeGlow  = Color(red: 1.00, green: 0.82, blue: 0.30)
 
     static let brass       = Color(red: 0.78, green: 0.64, blue: 0.36)
     static let brassDark   = Color(red: 0.34, green: 0.26, blue: 0.13)
@@ -48,9 +122,7 @@ enum Theme {
         colors: [dialInk2, dialInk, Color.black],
         center: .center, startRadius: 4, endRadius: 520)
 
-    static let amberLamp = RadialGradient(
-        colors: [amber.opacity(0.55), amberDeep.opacity(0.18), .clear],
-        center: .center, startRadius: 2, endRadius: 360)
+    nonisolated static var amberLamp: RadialGradient { current.lamp }
 
     static let brassBezel = LinearGradient(
         colors: [

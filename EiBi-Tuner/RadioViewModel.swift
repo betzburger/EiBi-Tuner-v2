@@ -95,6 +95,21 @@ final class RadioViewModel {
         didSet { UserDefaults.standard.set(snapToStation, forKey: "snapToStation") }
     }
 
+    // MARK: - Appearance (persisted)
+
+    /// Selected colour variant; swapping it repaints the whole UI.
+    var themeVariant: ThemeVariant = .amber {
+        didSet {
+            Theme.current = themeVariant.palette
+            UserDefaults.standard.set(themeVariant.rawValue, forKey: "themeVariant")
+        }
+    }
+
+    /// Whether the signal is shown as the S-meter or the green magic-eye tube.
+    var meterStyle: MeterStyle = .sMeter {
+        didSet { UserDefaults.standard.set(meterStyle.rawValue, forKey: "meterStyle") }
+    }
+
     // MARK: - Memory presets (persisted as JSON)
 
     /// Number of freely-assignable preset slots shown in the Preset picker.
@@ -151,6 +166,13 @@ final class RadioViewModel {
         }
         if let m = defaults.string(forKey: "lastMode"), !m.isEmpty {
             mode = m
+        }
+        if let tv = ThemeVariant(rawValue: defaults.string(forKey: "themeVariant") ?? "") {
+            themeVariant = tv
+        }
+        Theme.current = themeVariant.palette
+        if let ms = MeterStyle(rawValue: defaults.string(forKey: "meterStyle") ?? "") {
+            meterStyle = ms
         }
         presets = Self.loadPresets()
     }
