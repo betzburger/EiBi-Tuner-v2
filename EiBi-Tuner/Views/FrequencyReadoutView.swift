@@ -132,9 +132,13 @@ private struct DigitColumn: View {
     var body: some View {
         VStack(spacing: 0) {
             arrow("chevron.up") { onStep(1) }
+            // Double-click only on the digit glyph, so it never competes with
+            // the arrow buttons above/below for their single clicks.
             Text(char)
                 .font(Theme.readout)
                 .foregroundStyle(Theme.amberBright).amberGlow(8)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { onEdit() }
             arrow("chevron.down") { onStep(-1) }
         }
         .background(
@@ -142,15 +146,17 @@ private struct DigitColumn: View {
                 .fill(hovered ? Theme.amber.opacity(0.14) : .clear))
         .contentShape(Rectangle())
         .onHover { onHover($0) }
-        .onTapGesture(count: 2) { onEdit() }
     }
 
     private func arrow(_ name: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: name)
-                .font(.system(size: 10, weight: .heavy))
+                .font(.system(size: 11, weight: .heavy))
                 .foregroundStyle(Theme.amber)
-                .frame(height: 12)
+                // Roughly the digit's width and a tall band, so the whole area
+                // is clickable (not just the thin glyph) without spacing digits.
+                .frame(width: 16, height: 16)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .opacity(hovered ? 1 : 0)
