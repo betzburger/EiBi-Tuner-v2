@@ -100,11 +100,7 @@ struct ControlPanelView: View {
 
     private var readout: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(freqString).font(Theme.readout)
-                    .foregroundStyle(Theme.amberBright).amberGlow(8)
-                Text("kHz").font(Theme.label(12)).foregroundStyle(Theme.amber.opacity(0.7))
-            }
+            FrequencyReadoutView(vm: vm)
             HStack(spacing: 10) {
                 IndicatorLamp(on: vm.rigOnline, color: Theme.activeGlow)
                 Text(vm.rigOnline ? "FLRIG ONLINE" : "FLRIG OFFLINE")
@@ -117,10 +113,6 @@ struct ControlPanelView: View {
         }
     }
 
-    private var freqString: String {
-        let f = vm.currentFreqKHz
-        return f.formatted(.number.precision(.fractionLength(2)).grouping(.automatic))
-    }
     private var utcString: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm:ss"

@@ -96,8 +96,8 @@ private struct BrandBar: View {
             HStack(spacing: 6) {
                 ForEach(quickModes, id: \.self) { m in
                     ModeButton(label: m,
-                               isActive: vm.mode.caseInsensitiveCompare(m) == .orderedSame,
-                               enabled: vm.modeAvailable(m)) { vm.setMode(m) }
+                               isActive: vm.isQuickModeActive(m),
+                               enabled: vm.modeAvailable(m)) { vm.selectQuickMode(m) }
                 }
             }
         }

@@ -76,6 +76,9 @@ final class RadioViewModel {
     // Hover flags so the scroll-wheel monitor knows when to tune.
     var hoverDial = false
     var hoverKnob = false
+    /// Place value (kHz) of the frequency-readout digit currently hovered, so
+    /// the scroll-wheel monitor can step that digit. nil when none is hovered.
+    var hoverFreqPlace: Double? = nil
 
     /// When on, releasing the tuning knob / dial or stopping the wheel snaps
     /// to the nearest station. On by default.
@@ -174,6 +177,12 @@ final class RadioViewModel {
 
     /// Returns true when the scroll was used to tune (and should be consumed).
     private func handleScroll(deltaY: CGFloat) -> Bool {
+        // Over the frequency readout: step the hovered digit by its place value.
+        if let place = hoverFreqPlace, deltaY != 0 {
+            let dir: Double = deltaY > 0 ? 1 : -1
+            tune(toKHz: currentFreqKHz + dir * place)
+            return true
+        }
         guard hoverDial || hoverKnob, deltaY != 0 else { return false }
         let direction: Double = deltaY > 0 ? 1 : -1
         scrub(toKHz: currentFreqKHz + direction * scrollStepKHz)
@@ -278,6 +287,28 @@ final class RadioViewModel {
         tune(toKHz: currentFreqKHz + delta)
     }
 
+    /// Parses a user-typed frequency in kHz (tolerant of grouping separators and
+    /// either ',' or '.' as the decimal mark) and tunes to it.
+    func tuneToTypedFrequency(_ raw: String) {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "'", with: "")
+            .replacingOccurrences(of: "_", with: "")
+        let dot = s.lastIndex(of: "."), comma = s.lastIndex(of: ",")
+        if let d = dot, let c = comma {
+            // The right-most of the two is the decimal mark; the other is grouping.
+            if c > d {
+                s = s.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: ".")
+            } else {
+                s = s.replacingOccurrences(of: ",", with: "")
+            }
+        } else if comma != nil {
+            s = s.replacingOccurrences(of: ",", with: ".")
+        }
+        guard let v = Double(s), v > 0 else { return }
+        tune(toKHz: v)
+    }
+
     // MARK: - Band jumping
 
     /// Jumps the dial to a meter band. Lands on the nearest real station inside
@@ -345,11 +376,41 @@ final class RadioViewModel {
         Task { await client.setMode(m) }
     }
 
-    /// Whether the rig exposes a given mode (used to enable/grey quick buttons).
-    /// When the list is unknown (offline) all modes are allowed.
+    /// The base name of a rig mode, e.g. "CW-U" → "CW", "USB" → "USB".
+    private func modeBase(_ m: String) -> String {
+        m.split(separator: "-").first.map(String.init) ?? m
+    }
+
+    /// Resolves a quick-button label (USB/LSB/AM/CW) to the actual mode string
+    /// the connected rig uses. A Yaesu, for instance, reports CW as "CW-U", so
+    /// tapping CW must select "CW-U". Returns the label itself when offline.
+    func resolvedMode(for quick: String) -> String? {
+        guard !availableModes.isEmpty else { return quick }
+        if let exact = availableModes.first(where: { $0.caseInsensitiveCompare(quick) == .orderedSame }) {
+            return exact
+        }
+        let variants = availableModes.filter {
+            modeBase($0).caseInsensitiveCompare(quick) == .orderedSame
+        }
+        // Prefer the upper-sideband variant (e.g. CW-U) when the rig offers a choice.
+        return variants.first { $0.uppercased().hasSuffix("U") } ?? variants.first
+    }
+
+    /// Whether the rig exposes a mode for this quick label (used to enable/grey
+    /// the quick buttons). When the list is unknown (offline) all are allowed.
     func modeAvailable(_ m: String) -> Bool {
-        availableModes.isEmpty
-            || availableModes.contains { $0.caseInsensitiveCompare(m) == .orderedSame }
+        availableModes.isEmpty || resolvedMode(for: m) != nil
+    }
+
+    /// Whether the current rig mode belongs to a quick label's family, so that
+    /// e.g. "CW-U" lights up the CW button.
+    func isQuickModeActive(_ quick: String) -> Bool {
+        modeBase(mode).caseInsensitiveCompare(quick) == .orderedSame
+    }
+
+    /// Selects the resolved rig mode for a quick-button label.
+    func selectQuickMode(_ quick: String) {
+        setMode(resolvedMode(for: quick) ?? quick)
     }
 
     func setBandwidth(_ bw: String) {
