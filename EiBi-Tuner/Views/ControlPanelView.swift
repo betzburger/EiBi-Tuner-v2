@@ -47,6 +47,9 @@ struct ControlPanelView: View {
                 openSchedule
                     .frame(width: trailingWidth, alignment: .leading)
             }
+
+            // Optional receiver controls — only present when FLRIG exposes them.
+            if hasRXControls { rxControls }
         }
         .padding(16)
         .background(
@@ -155,6 +158,31 @@ struct ControlPanelView: View {
                 .fixedSize()
             RetroField(title: "HOST", text: $vm.host, width: 110)
             RetroField(title: "PORT", text: $vm.port, width: 56)
+        }
+    }
+
+    // MARK: Optional receiver controls (squelch / notch / RF-gain)
+
+    private var hasRXControls: Bool {
+        vm.notchAvailable || vm.squelchAvailable || vm.rfGainAvailable
+    }
+
+    private var rxControls: some View {
+        HStack(alignment: .bottom, spacing: 18) {
+            if vm.notchAvailable {
+                PushButton(label: "NOTCH", sublabel: "filter", isOn: vm.notchOn) { vm.toggleNotch() }
+            }
+            if vm.squelchAvailable {
+                LevelControl(title: "SQUELCH", value: vm.squelch) { v, commit in
+                    vm.setSquelch(v, commit: commit)
+                }
+            }
+            if vm.rfGainAvailable {
+                LevelControl(title: "RF GAIN", value: vm.rfGain) { v, commit in
+                    vm.setRfGain(v, commit: commit)
+                }
+            }
+            Spacer()
         }
     }
 }
@@ -287,6 +315,32 @@ struct RetroField: View {
                         .fill(.black.opacity(0.5))
                         .overlay(RoundedRectangle(cornerRadius: 6)
                             .strokeBorder(Theme.brassDark, lineWidth: 1)))
+        }
+    }
+}
+
+/// A compact engraved slider for a 0…100 level (squelch, RF gain). Reports the
+/// live value while dragging and a final committed value on release.
+struct LevelControl: View {
+    let title: String
+    let value: Double
+    let onChange: (Double, Bool) -> Void   // (newValue, commit)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Text(title).font(Theme.label(9)).tracking(1.5)
+                    .foregroundStyle(Theme.ivory.opacity(0.6))
+                Text("\(Int(value.rounded()))")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Theme.amberBright)
+            }
+            Slider(value: Binding(get: { value }, set: { onChange($0, false) }),
+                   in: 0...100,
+                   onEditingChanged: { editing in if !editing { onChange(value, true) } })
+                .controlSize(.small)
+                .frame(width: 130)
+                .tint(Theme.amberDeep)
         }
     }
 }

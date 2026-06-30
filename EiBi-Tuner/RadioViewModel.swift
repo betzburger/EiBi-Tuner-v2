@@ -62,6 +62,15 @@ final class RadioViewModel {
     private(set) var volumeAvailable = false
     private(set) var agcAvailable = false
 
+    /// Optional receiver controls discovered from FLRIG, shown only when the rig
+    /// exposes them: squelch / RF-gain levels (0…100) and a notch on/off.
+    var squelch: Double = 0
+    var rfGain: Double = 100
+    var notchOn = false
+    private(set) var squelchAvailable = false
+    private(set) var rfGainAvailable = false
+    private(set) var notchAvailable = false
+
     // MARK: - Connection (persisted)
 
     var host: String {
@@ -107,6 +116,9 @@ final class RadioViewModel {
     private var suppressVFOReadUntil: Date = .distantPast
     private var suppressVolumeReadUntil: Date = .distantPast
     private var suppressAgcReadUntil: Date = .distantPast
+    private var suppressSquelchReadUntil: Date = .distantPast
+    private var suppressRfReadUntil: Date = .distantPast
+    private var suppressNotchReadUntil: Date = .distantPast
     private var lastMinute: Int = -1
     private var listRefreshCounter = 0
 
@@ -116,6 +128,12 @@ final class RadioViewModel {
     private var volSetMethod: String?
     private var agcGetMethod: String?
     private var agcSetMethod: String?
+    private var sqlGetMethod: String?
+    private var sqlSetMethod: String?
+    private var rfGetMethod: String?
+    private var rfSetMethod: String?
+    private var notchGetMethod: String?
+    private var notchSetMethod: String?
 
     init() {
         let defaults = UserDefaults.standard
@@ -231,18 +249,32 @@ final class RadioViewModel {
                 let methods = await rig.listMethods()
                 if !methods.isEmpty {
                     methodsLoaded = true
-                    volGetMethod = methods.first { $0.lowercased().contains("get_volume") }
-                    volSetMethod = methods.first { $0.lowercased().contains("set_volume") }
-                    agcGetMethod = methods.first { $0.lowercased().contains("get_agc") }
-                    agcSetMethod = methods.first { $0.lowercased().contains("set_agc") }
+                    func find(_ needle: String) -> String? {
+                        methods.first { $0.lowercased().contains(needle) }
+                    }
+                    volGetMethod = find("get_volume"); volSetMethod = find("set_volume")
+                    agcGetMethod = find("get_agc");    agcSetMethod = find("set_agc")
+                    sqlGetMethod = find("get_sql") ?? find("get_squelch")
+                    sqlSetMethod = find("set_sql") ?? find("set_squelch")
+                    rfGetMethod = find("get_rfgain");  rfSetMethod = find("set_rfgain")
+                    notchGetMethod = find("get_notch"); notchSetMethod = find("set_notch")
                     volumeAvailable = volSetMethod != nil || volGetMethod != nil
                     agcAvailable = agcSetMethod != nil || agcGetMethod != nil
+                    squelchAvailable = sqlSetMethod != nil || sqlGetMethod != nil
+                    rfGainAvailable = rfSetMethod != nil || rfGetMethod != nil
+                    notchAvailable = notchSetMethod != nil || notchGetMethod != nil
                 }
             }
             if let g = volGetMethod, Date() >= suppressVolumeReadUntil,
                let v = await rig.getInt(g) { volume = Double(v) }
             if let g = agcGetMethod, Date() >= suppressAgcReadUntil,
                let a = await rig.getInt(g) { agcIndex = a }
+            if let g = sqlGetMethod, Date() >= suppressSquelchReadUntil,
+               let v = await rig.getInt(g) { squelch = Double(v) }
+            if let g = rfGetMethod, Date() >= suppressRfReadUntil,
+               let v = await rig.getInt(g) { rfGain = Double(v) }
+            if let g = notchGetMethod, Date() >= suppressNotchReadUntil,
+               let v = await rig.getInt(g) { notchOn = v != 0 }
         } else {
             rigOnline = false
             smeter = max(0, smeter - 12) // let the needle fall back
@@ -453,6 +485,50 @@ final class RadioViewModel {
         case 2: return "MED"
         case 3: return "SLOW"
         default: return "\(agcIndex)"
+        }
+    }
+
+    // MARK: - Optional receiver controls (squelch / RF-gain / notch)
+
+    private var lastSquelchSend: Date = .distantPast
+    private var lastRfSend: Date = .distantPast
+
+    /// Sets the squelch threshold (0…100). Throttles during a drag; `commit`
+    /// forces a final send on release.
+    func setSquelch(_ v: Double, commit: Bool = false) {
+        squelch = min(max(v, 0), 100)
+        suppressSquelchReadUntil = Date().addingTimeInterval(1.0)
+        guard let m = sqlSetMethod else { return }
+        let now = Date()
+        if commit || now.timeIntervalSince(lastSquelchSend) >= 0.1 {
+            lastSquelchSend = now
+            let level = Int(squelch.rounded())
+            Task { await client.setInt(m, level) }
+        }
+    }
+
+    /// Sets the RF gain (0…100). Throttles during a drag; `commit` forces a
+    /// final send on release.
+    func setRfGain(_ v: Double, commit: Bool = false) {
+        rfGain = min(max(v, 0), 100)
+        suppressRfReadUntil = Date().addingTimeInterval(1.0)
+        guard let m = rfSetMethod else { return }
+        let now = Date()
+        if commit || now.timeIntervalSince(lastRfSend) >= 0.1 {
+            lastRfSend = now
+            let level = Int(rfGain.rounded())
+            Task { await client.setInt(m, level) }
+        }
+    }
+
+    /// Toggles the notch filter on/off.
+    func toggleNotch() {
+        guard notchAvailable else { return }
+        notchOn.toggle()
+        suppressNotchReadUntil = Date().addingTimeInterval(1.0)
+        if let m = notchSetMethod {
+            let value = notchOn ? 1 : 0
+            Task { await client.setInt(m, value) }
         }
     }
 
