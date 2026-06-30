@@ -15,6 +15,7 @@ struct ControlPanelView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var showBands = false
     @State private var showPresets = false
+    @State private var showGuide = false
 
     // Shared column geometry so the two fascia rows line up vertically:
     // the readout / four-button column, and the right-hand TARGET / Open
@@ -41,6 +42,10 @@ struct ControlPanelView: View {
                     .frame(width: leadingWidth, alignment: .leading)
                 connection
                 Spacer(minLength: 12)
+                PushButton(label: "GUIDE", sublabel: "schedule", isOn: showGuide) {
+                    showGuide.toggle()
+                }
+                .popover(isPresented: $showGuide) { ScheduleTimelineView(vm: vm) }
                 PushButton(label: "HELP", sublabel: "?", isOn: false) {
                     openWindow(id: "help")
                 }

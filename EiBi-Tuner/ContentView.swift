@@ -11,40 +11,26 @@ import SwiftUI
 struct ContentView: View {
     @Bindable var vm: RadioViewModel
 
+    // Tube warm-up: 0 = cold/off, 1 = fully lit. The brand bar (with the power
+    // switch) stays lit; only the instrument below it dims and warms up.
+    @State private var warmth = 0.0
+    @State private var powerOn = true
+    @State private var didWarmUp = false
+
     var body: some View {
         ZStack {
             Theme.cabinet.ignoresSafeArea()
             woodGrain.ignoresSafeArea()
 
             VStack(spacing: 14) {
-                BrandBar(vm: vm)
+                BrandBar(vm: vm, powerOn: powerOn, onPower: togglePower)
 
-                DialScaleView(vm: vm)
-                    .frame(height: 168)
-
-                HStack(spacing: 14) {
-                    StationStackView(vm: vm)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    VStack(spacing: 10) {
-                        Group {
-                            if vm.meterStyle == .magicEye {
-                                MagicEyeView(value: vm.smeter, online: vm.rigOnline)
-                            } else {
-                                SMeterView(value: vm.smeter, online: vm.rigOnline)
-                            }
-                        }
-                        .frame(width: 240)
-                        MeterToggle(vm: vm)
-                        HStack(spacing: 18) {
-                            TuningKnobView(vm: vm, size: 98)
-                            VolumeKnobView(vm: vm, size: 92)
-                        }
-                    }
-                }
-                .frame(maxHeight: .infinity)
-
-                ControlPanelView(vm: vm)
+                instrument
+                    .overlay(
+                        Color.black
+                            .opacity((1 - warmth) * 0.9)
+                            .cornerRadius(8)
+                            .allowsHitTesting(!powerOn))
             }
             .padding(22)
             .overlay(CabinetScrews())
@@ -52,6 +38,7 @@ struct ContentView: View {
         // Re-render the whole cabinet when the colour variant changes so every
         // view (including purely decorative ones) picks up the new palette.
         .id(vm.themeVariant)
+        .onAppear { if !didWarmUp { didWarmUp = true; warmUp() } }
         .frame(minWidth: 960, minHeight: 840)
         .alert("Load error", isPresented: Binding(
             get: { vm.loadError != nil },
@@ -59,6 +46,62 @@ struct ContentView: View {
             Button("OK", role: .cancel) { vm.loadError = nil }
         } message: {
             Text(vm.loadError ?? "")
+        }
+    }
+
+    /// Everything below the brand bar — the part that warms up / dims.
+    private var instrument: some View {
+        VStack(spacing: 14) {
+            DialScaleView(vm: vm)
+                .frame(height: 168)
+
+            HStack(spacing: 14) {
+                StationStackView(vm: vm)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                VStack(spacing: 10) {
+                    Group {
+                        if vm.meterStyle == .magicEye {
+                            MagicEyeView(value: vm.smeter, online: vm.rigOnline)
+                        } else {
+                            SMeterView(value: vm.smeter, online: vm.rigOnline)
+                        }
+                    }
+                    .frame(width: 240)
+                    MeterToggle(vm: vm)
+                    HStack(spacing: 18) {
+                        TuningKnobView(vm: vm, size: 98)
+                        VolumeKnobView(vm: vm, size: 92)
+                    }
+                }
+            }
+            .frame(maxHeight: .infinity)
+
+            ControlPanelView(vm: vm)
+        }
+    }
+
+    // MARK: Power / warm-up
+
+    private func togglePower() {
+        powerOn.toggle()
+        if powerOn {
+            warmUp()
+        } else {
+            withAnimation(.easeIn(duration: 0.7)) { warmth = 0 }
+        }
+    }
+
+    /// Flickers the backlight a few times like a filament catching, then settles
+    /// to a steady glow.
+    private func warmUp() {
+        warmth = 0
+        Task {
+            for v in [0.22, 0.06, 0.42, 0.16, 0.7] {
+                withAnimation(.easeInOut(duration: 0.07)) { warmth = v }
+                try? await Task.sleep(for: .milliseconds(85))
+            }
+            withAnimation(.easeOut(duration: 1.1)) { warmth = 1 }
         }
     }
 
@@ -74,11 +117,16 @@ struct ContentView: View {
 
 private struct BrandBar: View {
     @Bindable var vm: RadioViewModel
+    let powerOn: Bool
+    let onPower: () -> Void
 
     private let quickModes = ["USB", "LSB", "AM", "CW"]
 
     var body: some View {
         HStack(alignment: .center) {
+            PowerSwitch(on: powerOn, action: onPower)
+                .padding(.trailing, 12)
+
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6).fill(Theme.brassBezel)
@@ -114,6 +162,35 @@ private struct BrandBar: View {
                 }
             }
         }
+    }
+}
+
+/// A retro illuminated power switch with a pilot lamp.
+private struct PowerSwitch: View {
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "power")
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundStyle(on ? Theme.amberBright : Theme.ivory.opacity(0.45))
+                Circle()
+                    .fill(on ? Theme.activeGlow : Color.black.opacity(0.55))
+                    .frame(width: 7, height: 7)
+                    .overlay(Circle().strokeBorder(.black.opacity(0.4), lineWidth: 0.5))
+                    .shadow(color: on ? Theme.activeGlow.opacity(0.9) : .clear, radius: 4)
+            }
+            .padding(.horizontal, 9).padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.black.opacity(0.35))
+                    .overlay(RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Theme.brassDark, lineWidth: 1)))
+        }
+        .buttonStyle(.plain)
+        .help(on ? "Power off" : "Power on")
     }
 }
 
