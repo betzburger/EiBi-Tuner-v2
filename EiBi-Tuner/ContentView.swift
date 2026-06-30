@@ -11,10 +11,9 @@ import SwiftUI
 struct ContentView: View {
     @Bindable var vm: RadioViewModel
 
-    // Tube warm-up: 0 = cold/off, 1 = fully lit. The brand bar (with the power
-    // switch) stays lit; only the instrument below it dims and warms up.
+    // Tube warm-up on launch: 0 = cold, 1 = fully lit. The brand bar stays lit;
+    // only the instrument below it fades in.
     @State private var warmth = 0.0
-    @State private var powerOn = true
     @State private var didWarmUp = false
 
     var body: some View {
@@ -23,14 +22,14 @@ struct ContentView: View {
             woodGrain.ignoresSafeArea()
 
             VStack(spacing: 14) {
-                BrandBar(vm: vm, powerOn: powerOn, onPower: togglePower)
+                BrandBar(vm: vm)
 
                 instrument
                     .overlay(
                         Color.black
                             .opacity((1 - warmth) * 0.9)
                             .cornerRadius(8)
-                            .allowsHitTesting(!powerOn))
+                            .allowsHitTesting(false))
             }
             .padding(22)
             .overlay(CabinetScrews())
@@ -81,19 +80,10 @@ struct ContentView: View {
         }
     }
 
-    // MARK: Power / warm-up
-
-    private func togglePower() {
-        powerOn.toggle()
-        if powerOn {
-            warmUp()
-        } else {
-            withAnimation(.easeIn(duration: 0.7)) { warmth = 0 }
-        }
-    }
+    // MARK: Warm-up
 
     /// Flickers the backlight a few times like a filament catching, then settles
-    /// to a steady glow.
+    /// to a steady glow. Runs once, when the app launches.
     private func warmUp() {
         warmth = 0
         Task {
@@ -117,16 +107,11 @@ struct ContentView: View {
 
 private struct BrandBar: View {
     @Bindable var vm: RadioViewModel
-    let powerOn: Bool
-    let onPower: () -> Void
 
     private let quickModes = ["USB", "LSB", "AM", "CW"]
 
     var body: some View {
         HStack(alignment: .center) {
-            PowerSwitch(on: powerOn, action: onPower)
-                .padding(.trailing, 12)
-
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6).fill(Theme.brassBezel)
@@ -162,35 +147,6 @@ private struct BrandBar: View {
                 }
             }
         }
-    }
-}
-
-/// A retro illuminated power switch with a pilot lamp.
-private struct PowerSwitch: View {
-    let on: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: "power")
-                    .font(.system(size: 12, weight: .heavy))
-                    .foregroundStyle(on ? Theme.amberBright : Theme.ivory.opacity(0.45))
-                Circle()
-                    .fill(on ? Theme.activeGlow : Color.black.opacity(0.55))
-                    .frame(width: 7, height: 7)
-                    .overlay(Circle().strokeBorder(.black.opacity(0.4), lineWidth: 0.5))
-                    .shadow(color: on ? Theme.activeGlow.opacity(0.9) : .clear, radius: 4)
-            }
-            .padding(.horizontal, 9).padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(.black.opacity(0.35))
-                    .overlay(RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(Theme.brassDark, lineWidth: 1)))
-        }
-        .buttonStyle(.plain)
-        .help(on ? "Power off" : "Power on")
     }
 }
 
