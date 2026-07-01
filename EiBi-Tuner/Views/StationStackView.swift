@@ -85,7 +85,7 @@ private struct StationRow: View {
 
     private var tint: Color {
         switch highlight {
-        case .active:      return Theme.activeGlow
+        case .active:      return Theme.onAirYellow
         case .onFrequency: return .white
         case .normal:      return Theme.amber
         }
@@ -116,7 +116,7 @@ private struct StationRow: View {
             }
             if station.isActive(at: Date()) {
                 Text("ON AIR").font(.system(size: 8, weight: .heavy))
-                    .foregroundStyle(Theme.activeGlow).tracking(1)
+                    .foregroundStyle(Theme.onAirYellow).tracking(1)
             }
         }
         .foregroundStyle(tint)

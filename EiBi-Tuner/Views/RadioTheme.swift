@@ -95,6 +95,12 @@ enum Theme {
     static let dialInk     = Color(red: 0.05, green: 0.040, blue: 0.022)
     static let dialInk2    = Color(red: 0.10, green: 0.075, blue: 0.035)
 
+    /// A fixed "on-air" yellow, independent of the selected colour theme — the
+    /// station list uses this (rather than `activeGlow`) so a tuned, on-air
+    /// station always reads as yellow, even in the blue/green/red variants
+    /// where `activeGlow` is just a lighter tint of the accent colour.
+    static let onAirYellow = Color(red: 1.00, green: 0.85, blue: 0.20)
+
     static let ivory       = Color(red: 0.93, green: 0.89, blue: 0.80)
     static let ivoryDark   = Color(red: 0.74, green: 0.69, blue: 0.58)
     static let pointer     = Color(red: 0.93, green: 0.27, blue: 0.18)
