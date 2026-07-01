@@ -52,12 +52,6 @@ final class RadioViewModel {
     var currentFreqKHz: Double = 1000
     var smeter: Double = 0          // 0…100 (% of scale), as FLRIG reports
     var rigOnline = false
-
-    /// Small pseudo-random jitter layered onto `smeter` to mimic atmospheric
-    /// noise on the S-meter / magic-eye — most visible on a weak or absent
-    /// signal, damped to near-nothing once locked onto something strong.
-    private(set) var meterJitter: Double = 0
-    var displaySignal: Double { min(max(smeter + meterJitter, 0), 100) }
     var mode: String = "—"
     var availableModes: [String] = []
     var bandwidth: String = "—"
@@ -213,28 +207,13 @@ final class RadioViewModel {
                 try? await Task.sleep(for: .seconds(1))
             }
         }
-        jitterTask = Task { [weak self] in
-            while !Task.isCancelled {
-                await self?.updateMeterJitter()
-                try? await Task.sleep(for: .milliseconds(220))
-            }
-        }
     }
 
     func stop() {
         pollTask?.cancel()
         pollTask = nil
-        jitterTask?.cancel()
-        jitterTask = nil
         if let m = scrollMonitor { NSEvent.removeMonitor(m); scrollMonitor = nil }
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
-    }
-
-    private var jitterTask: Task<Void, Never>?
-
-    private func updateMeterJitter() {
-        let magnitude = rigOnline ? max(0, (35 - smeter) / 35) * 3.5 : 5.5
-        meterJitter = Double.random(in: -magnitude...magnitude)
     }
 
     // MARK: - Mouse-wheel tuning (over the dial or tuning knob)

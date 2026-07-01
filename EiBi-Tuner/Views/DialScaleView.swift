@@ -66,6 +66,7 @@ struct DialScaleView: View {
                 .padding(8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 1)
@@ -180,8 +181,11 @@ struct DialScaleView: View {
         var laneRight = [CGFloat]()
         var items: [PlateItem] = []
         for st in capped.sorted(by: { $0.freqKHz < $1.freqKHz }) {
-            let px = min(max(x(st.freqKHz), 8), w - 8)
             let plateW = min(max(CGFloat(st.station.count) * 6.5 + 44, 90), 220)
+            // Clamp by the plate's own half-width (not just a fixed margin),
+            // so a plate near the edge never spills past the dial's bounds —
+            // the leader line still points at the true tick position.
+            let px = min(max(x(st.freqKHz), plateW / 2 + 4), w - plateW / 2 - 4)
             let leftEdge = px - plateW / 2
 
             var lane = laneRight.firstIndex(where: { $0 + 10 <= leftEdge }) ?? -1

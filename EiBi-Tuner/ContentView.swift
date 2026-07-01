@@ -61,9 +61,9 @@ struct ContentView: View {
                 VStack(spacing: 10) {
                     Group {
                         if vm.meterStyle == .magicEye {
-                            MagicEyeView(value: vm.displaySignal, online: vm.rigOnline)
+                            MagicEyeView(value: vm.smeter, online: vm.rigOnline)
                         } else {
-                            SMeterView(value: vm.displaySignal, online: vm.rigOnline)
+                            SMeterView(value: vm.smeter, online: vm.rigOnline)
                         }
                     }
                     .frame(width: 240)
@@ -96,43 +96,10 @@ struct ContentView: View {
     }
 
     private var woodGrain: some View {
-        ZStack {
-            // Procedural wood streaks: wandering sine-wave fibres, some darker
-            // (heartwood), some lighter (early-wood bands) — deterministic
-            // (no randomness) so the cabinet doesn't re-texture on every redraw.
-            Canvas { ctx, size in drawWoodGrain(ctx, size) }
-
-            // Subtle vertical sheen + vignette over the bakelite.
-            LinearGradient(colors: [.white.opacity(0.04), .clear, .black.opacity(0.35)],
-                           startPoint: .top, endPoint: .bottom)
-                .blendMode(.overlay)
-        }
-    }
-
-    private func drawWoodGrain(_ ctx: GraphicsContext, _ size: CGSize) {
-        let lineCount = 46
-        for i in 0..<lineCount {
-            let t = Double(i) / Double(lineCount - 1)
-            let yBase = size.height * t
-            let amplitude = 3 + 6 * abs(sin(t * 11 + 1.3))
-            let frequency = 1.2 + 1.6 * abs(cos(t * 7 + 0.4))
-            let phase = t * 23.0
-
-            var path = Path()
-            let steps = 48
-            for s in 0...steps {
-                let u = Double(s) / Double(steps)
-                let x = size.width * u
-                let y = yBase + sin(u * frequency * 2 * .pi + phase) * amplitude
-                if s == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
-            }
-
-            let dark = i % 3 == 0
-            let opacity = 0.035 + 0.05 * abs(sin(t * 17 + 2.1))
-            ctx.stroke(path,
-                       with: .color((dark ? Color.black : Color.white).opacity(opacity)),
-                       lineWidth: 0.6 + 1.0 * abs(cos(t * 13)))
-        }
+        // Subtle vertical sheen + vignette over the bakelite.
+        LinearGradient(colors: [.white.opacity(0.04), .clear, .black.opacity(0.35)],
+                       startPoint: .top, endPoint: .bottom)
+            .blendMode(.overlay)
     }
 }
 

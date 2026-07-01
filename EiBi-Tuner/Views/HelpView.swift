@@ -307,8 +307,8 @@ private extension HelpView {
                              detail: t("Der rechte Drehknopf stellt die NF-Verstärkung (0…100) ein, sofern der Rig sie über FLRIG meldet – sonst ist er ausgegraut.",
                                        "The right-hand knob sets the AF gain (0…100), if the rig reports it through FLRIG — otherwise it is greyed out.")),
                     HelpItem(term: "S-Meter", symbol: "gauge.with.needle.fill",
-                             detail: t("Die Anzeige folgt dem von FLRIG gemeldeten Signalpegel. Bei Verbindungsabbruch fällt die Nadel sanft zurück. Ein leichtes Zittern bei schwachem oder fehlendem Signal ist normal – es bildet das Rauschen des Empfängers nach.",
-                                       "The meter follows the signal level reported by FLRIG. On connection loss the needle falls back gently. A slight flicker on a weak or absent signal is normal — it mimics the receiver’s noise floor.")),
+                             detail: t("Die Anzeige folgt dem von FLRIG gemeldeten Signalpegel. Bei Verbindungsabbruch fällt die Nadel sanft zurück.",
+                                       "The meter follows the signal level reported by FLRIG. On connection loss the needle falls back gently.")),
                 ]),
 
             HelpSection(
