@@ -27,9 +27,10 @@ final class RadioViewModel {
     // MARK: - Schedule data
 
     private(set) var stations: [Station] = []
+    /// All stations passing the current filters, sorted by frequency — the
+    /// full spectrum, not just those near the dial. Drives both the station
+    /// list and the dial scale.
     private(set) var displayedStations: [Station] = []
-    /// Up to 10 stations closest to the current dial frequency (for the stack).
-    private(set) var nearbyStations: [Station] = []
     private(set) var fileType: FileType?
     private(set) var loadedFileName: String?
     var isLoading = false
@@ -48,7 +49,7 @@ final class RadioViewModel {
 
     // MARK: - Rig state
 
-    var currentFreqKHz: Double = 1000 { didSet { recomputeNearby() } }
+    var currentFreqKHz: Double = 1000
     var smeter: Double = 0          // 0…100 (% of scale), as FLRIG reports
     var rigOnline = false
     var mode: String = "—"
@@ -125,6 +126,19 @@ final class RadioViewModel {
     private(set) var minFreqKHz: Double = 150
     private(set) var maxFreqKHz: Double = 30_000
 
+    // MARK: - Dial zoom (persisted; manual zoom buttons set the visible span)
+
+    static let minDialSpanKHz = 5.0
+    static let maxDialSpanKHz = 3000.0
+
+    /// kHz span shown by the dial scale, centred on `currentFreqKHz`.
+    var dialSpanKHz: Double = 300 {
+        didSet { UserDefaults.standard.set(dialSpanKHz, forKey: "dialSpanKHz") }
+    }
+
+    func zoomIn() { dialSpanKHz = max(Self.minDialSpanKHz, dialSpanKHz / 1.4) }
+    func zoomOut() { dialSpanKHz = min(Self.maxDialSpanKHz, dialSpanKHz * 1.4) }
+
     // MARK: - Private
 
     private var pollTask: Task<Void, Never>?
@@ -166,6 +180,9 @@ final class RadioViewModel {
         }
         if let m = defaults.string(forKey: "lastMode"), !m.isEmpty {
             mode = m
+        }
+        if let s = defaults.object(forKey: "dialSpanKHz") as? Double, s > 0 {
+            dialSpanKHz = min(max(s, Self.minDialSpanKHz), Self.maxDialSpanKHz)
         }
         if let tv = ThemeVariant(rawValue: defaults.string(forKey: "themeVariant") ?? "") {
             themeVariant = tv
@@ -306,7 +323,9 @@ final class RadioViewModel {
         let minute = Calendar.current.component(.minute, from: utcNow)
         if minute != lastMinute {
             lastMinute = minute
-            if activeOnly { recomputeDisplayed() } else { recomputeNearby() }
+            // Reassigns displayedStations even when membership is unchanged,
+            // so the list/dial redraw and refresh their on-air highlights.
+            recomputeDisplayed()
         }
     }
 
@@ -581,15 +600,6 @@ final class RadioViewModel {
         result.sort { $0.freqKHz < $1.freqKHz }
 
         displayedStations = result
-        recomputeNearby()
-    }
-
-    private func recomputeNearby() {
-        guard !displayedStations.isEmpty else { nearbyStations = []; return }
-        let nearest = displayedStations
-            .sorted { abs($0.freqKHz - currentFreqKHz) < abs($1.freqKHz - currentFreqKHz) }
-            .prefix(10)
-        nearbyStations = nearest.sorted { $0.freqKHz < $1.freqKHz }
     }
 
     // MARK: - File loading

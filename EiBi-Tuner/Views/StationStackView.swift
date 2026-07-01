@@ -2,10 +2,11 @@
 //  StationStackView.swift
 //  EiBi-Tuner
 //
-//  The legible counterpart to the dial: up to 10 nearby stations as backlit
-//  rows. Grey-glowing row = on the dial frequency, amber-glowing = on the air
-//  right now (ports the grey/yellow highlight rule of update_view_mode_display).
-//  Click a row to tune FLRIG to it.
+//  The legible counterpart to the dial: every station in the loaded schedule,
+//  one single-line row each, freely scrollable across the whole spectrum.
+//  White-glowing row = on the dial frequency, amber/yellow-glowing = on the
+//  air right now (ports the grey/yellow highlight rule of
+//  update_view_mode_display). Click a row to tune FLRIG to it.
 //
 
 import SwiftUI
@@ -26,7 +27,7 @@ struct StationStackView: View {
             }
             .padding(.horizontal, 4)
 
-            if vm.nearbyStations.isEmpty {
+            if vm.displayedStations.isEmpty {
                 Spacer()
                 Text(vm.isLoading ? "Loading…" : "No stations")
                     .font(Theme.stationName(13))
@@ -34,9 +35,9 @@ struct StationStackView: View {
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 3) {
-                        ForEach(vm.nearbyStations) { st in
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(spacing: 2) {
+                        ForEach(vm.displayedStations) { st in
                             StationRow(station: st, highlight: vm.highlight(for: st))
                                 .onTapGesture { vm.tune(toKHz: st.freqKHz) }
                         }
@@ -73,36 +74,37 @@ private struct StationRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(station.freqText)
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .frame(width: 72, alignment: .trailing)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .frame(width: 66, alignment: .trailing)
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text(station.station.isEmpty ? "—" : station.station)
-                    .font(Theme.stationName(13)).lineLimit(1)
-                if !subtitle.isEmpty {
-                    Text(subtitle).font(.system(size: 10, design: .serif))
-                        .opacity(0.75).lineLimit(1)
-                }
+            Text(station.station.isEmpty ? "—" : station.station)
+                .font(Theme.stationName(12)).lineLimit(1)
+
+            if !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.system(size: 10, design: .serif))
+                    .opacity(0.65).lineLimit(1)
             }
+
             Spacer(minLength: 4)
 
-            VStack(alignment: .trailing, spacing: 0) {
-                if !station.time.isEmpty {
-                    Text(station.time).font(.system(size: 10, weight: .medium, design: .monospaced))
-                }
-                if station.isActive(at: Date()) {
-                    Text("ON AIR").font(.system(size: 8, weight: .heavy))
-                        .foregroundStyle(Theme.activeGlow).tracking(1)
-                }
+            if !station.time.isEmpty {
+                Text(station.time)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .opacity(0.85)
+            }
+            if station.isActive(at: Date()) {
+                Text("ON AIR").font(.system(size: 8, weight: .heavy))
+                    .foregroundStyle(Theme.activeGlow).tracking(1)
             }
         }
         .foregroundStyle(tint)
-        .amberGlow(lit ? 5 : 0, color: tint)
-        .padding(.horizontal, 8).padding(.vertical, 5)
+        .amberGlow(lit ? 4 : 0, color: tint)
+        .padding(.horizontal, 8).padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 5)
                 .fill(.black.opacity(lit ? 0.5 : 0.22))
-                .overlay(RoundedRectangle(cornerRadius: 6)
+                .overlay(RoundedRectangle(cornerRadius: 5)
                     .strokeBorder(tint.opacity(lit ? 0.7 : 0.18), lineWidth: 1))
         )
         .contentShape(Rectangle())

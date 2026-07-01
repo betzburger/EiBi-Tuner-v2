@@ -3,9 +3,11 @@
 //  EiBi-Tuner
 //
 //  The hero: a big amber-backlit tuning scale. A frequency ruler scrolls under
-//  a fixed red center index as you tune; up to 10 nearby stations are drawn as
-//  staggered call-out plates along the scale. Drag to tune FLRIG (two-way),
-//  or click a plate to jump to it.
+//  a fixed red center index as you tune; every station within the visible
+//  span is drawn as a single-line call-out plate along the scale (only
+//  stations sharing the exact same frequency are capped to what fits
+//  vertically). Drag to tune FLRIG (two-way), or click a plate to jump to it.
+//  Two zoom buttons let the user widen or narrow the visible span manually.
 //
 
 import SwiftUI
@@ -18,7 +20,7 @@ struct DialScaleView: View {
         GeometryReader { geo in
             let w = geo.size.width
             let h = geo.size.height
-            let span = visibleSpan
+            let span = vm.dialSpanKHz
             let lo = vm.currentFreqKHz - span / 2
             let layout = stagger(in: CGSize(width: w, height: h), lo: lo, span: span)
 
@@ -56,6 +58,13 @@ struct DialScaleView: View {
                         .foregroundStyle(Theme.amber.opacity(0.8))
                         .amberGlow()
                 }
+
+                VStack(spacing: 6) {
+                    ZoomButton(systemName: "plus.magnifyingglass") { vm.zoomIn() }
+                    ZoomButton(systemName: "minus.magnifyingglass") { vm.zoomOut() }
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
             .contentShape(Rectangle())
             .gesture(
@@ -75,15 +84,6 @@ struct DialScaleView: View {
                 if case .active = phase { vm.hoverDial = true } else { vm.hoverDial = false }
             }
         }
-    }
-
-    // MARK: - Visible span (adapts so all nearby plates fit)
-
-    private var visibleSpan: Double {
-        let base = max(40, min(vm.currentFreqKHz * 0.06, 400))
-        let farthest = vm.nearbyStations
-            .map { abs($0.freqKHz - vm.currentFreqKHz) }.max() ?? 0
-        return min(max(base, farthest * 2.3), 2000)
     }
 
     // MARK: - Ruler drawing
@@ -153,13 +153,33 @@ struct DialScaleView: View {
         let w = size.width, h = size.height
         func x(_ f: Double) -> CGFloat { CGFloat((f - lo) / span) * w }
 
-        let topY = h * 0.42
-        let laneH: CGFloat = 30
+        let topY = h * 0.32
+        let laneH: CGFloat = 20
         let maxLanes = max(1, Int((h - topY) / laneH))
-        var laneRight = [CGFloat]()
 
+        // Every station within the visible span — not capped overall.
+        let visible = vm.displayedStations.filter { $0.freqKHz >= lo && $0.freqKHz <= lo + span }
+
+        // Stations sharing the exact same frequency would all stack in the
+        // same spot; show only as many as fit vertically, ranked by highlight.
+        var byFreq: [Double: [Station]] = [:]
+        for st in visible { byFreq[st.freqKHz, default: []].append(st) }
+        var capped: [Station] = []
+        for (_, group) in byFreq {
+            if group.count <= maxLanes {
+                capped.append(contentsOf: group)
+            } else {
+                let ranked = group.sorted { a, b in
+                    let ra = rank(vm.highlight(for: a)), rb = rank(vm.highlight(for: b))
+                    return ra != rb ? ra > rb : a.station < b.station
+                }
+                capped.append(contentsOf: ranked.prefix(maxLanes))
+            }
+        }
+
+        var laneRight = [CGFloat]()
         var items: [PlateItem] = []
-        for st in vm.nearbyStations.sorted(by: { $0.freqKHz < $1.freqKHz }) {
+        for st in capped.sorted(by: { $0.freqKHz < $1.freqKHz }) {
             let px = min(max(x(st.freqKHz), 8), w - 8)
             let plateW = min(max(CGFloat(st.station.count) * 6.5 + 44, 90), 220)
             let leftEdge = px - plateW / 2
@@ -175,7 +195,7 @@ struct DialScaleView: View {
             let hl = vm.highlight(for: st)
             items.append(PlateItem(
                 id: st.id, station: st,
-                point: CGPoint(x: px, y: topY + CGFloat(lane) * laneH + 12),
+                point: CGPoint(x: px, y: topY + CGFloat(lane) * laneH + laneH / 2),
                 tickX: x(st.freqKHz),
                 highlight: hl, tint: tint(for: hl)))
         }
@@ -189,6 +209,36 @@ struct DialScaleView: View {
         case .normal:      return Theme.amber.opacity(0.85)
         }
     }
+
+    /// Priority when capping same-frequency plates: active > on-frequency > normal.
+    private func rank(_ hl: RadioViewModel.Highlight) -> Int {
+        switch hl {
+        case .active:      return 2
+        case .onFrequency: return 1
+        case .normal:      return 0
+        }
+    }
+}
+
+// MARK: - Zoom control
+
+private struct ZoomButton: View {
+    let systemName: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.amberBright)
+                .frame(width: 24, height: 24)
+                .background(
+                    Circle().fill(.black.opacity(0.45))
+                        .overlay(Circle().strokeBorder(Theme.amber.opacity(0.6), lineWidth: 1))
+                )
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - Station call-out plate
@@ -199,17 +249,12 @@ private struct StationPlate: View {
     let tint: Color
 
     var body: some View {
-        VStack(spacing: 1) {
-            Text(station.station.isEmpty ? "—" : station.station)
-                .font(Theme.stationName(12))
-                .lineLimit(1)
-            Text(station.freqText)
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .opacity(0.85)
-        }
-        .foregroundStyle(tint)
-        .amberGlow(highlight == .normal ? 3 : 7, color: tint)
-        .padding(.horizontal, 7).padding(.vertical, 3)
+        Text(station.station.isEmpty ? "—" : station.station)
+            .font(Theme.stationName(11))
+            .lineLimit(1)
+            .foregroundStyle(tint)
+            .amberGlow(highlight == .normal ? 3 : 7, color: tint)
+        .padding(.horizontal, 6).padding(.vertical, 2)
         .background(
             RoundedRectangle(cornerRadius: 5)
                 .fill(.black.opacity(highlight == .normal ? 0.25 : 0.45))
