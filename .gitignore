@@ -16,3 +16,7 @@ DerivedData/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Local release packaging (archives, exported .app, DMGs) — built on demand,
+# published to GitHub Releases instead of tracked here.
+/build/
