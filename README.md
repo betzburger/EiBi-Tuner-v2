@@ -4,6 +4,11 @@ A macOS shortwave receiver console styled like a vintage valve radio. EiBi-Tuner
 
 Built with SwiftUI for macOS 14+.
 
+<p>
+  <img src="docs/screenshot-wood.png" width="49%" alt="EiBi-Tuner in the Wood cabinet theme">
+  <img src="docs/screenshot-metal.png" width="49%" alt="EiBi-Tuner in the Metal cabinet theme, with the band picker open">
+</p>
+
 ## Features
 
 - **Two-way FLRIG control** — drag the dial, use the tuning knob, scroll, or type a frequency; the rig follows in real time, and vice versa.
