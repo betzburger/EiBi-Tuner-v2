@@ -47,6 +47,8 @@ struct FrequencyReadoutView: View {
                         Text(d.char)
                             .font(Theme.readout)
                             .foregroundStyle(Theme.amberBright).amberGlow(8)
+                            .contentTransition(.numericText())
+                            .animation(.easeInOut(duration: 0.18), value: d.char)
                             .contentShape(Rectangle())
                             .onTapGesture(count: 2) { beginEdit() }
                     }
@@ -137,6 +139,8 @@ private struct DigitColumn: View {
             Text(char)
                 .font(Theme.readout)
                 .foregroundStyle(Theme.amberBright).amberGlow(8)
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.18), value: char)
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) { onEdit() }
             arrow("chevron.down") { onStep(-1) }

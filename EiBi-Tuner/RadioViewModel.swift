@@ -52,6 +52,12 @@ final class RadioViewModel {
     var currentFreqKHz: Double = 1000
     var smeter: Double = 0          // 0…100 (% of scale), as FLRIG reports
     var rigOnline = false
+
+    /// Small pseudo-random jitter layered onto `smeter` to mimic atmospheric
+    /// noise on the S-meter / magic-eye — most visible on a weak or absent
+    /// signal, damped to near-nothing once locked onto something strong.
+    private(set) var meterJitter: Double = 0
+    var displaySignal: Double { min(max(smeter + meterJitter, 0), 100) }
     var mode: String = "—"
     var availableModes: [String] = []
     var bandwidth: String = "—"
@@ -200,10 +206,17 @@ final class RadioViewModel {
         guard pollTask == nil else { return }
         loadRememberedFile()
         installScrollMonitor()
+        installKeyMonitor()
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.tick()
                 try? await Task.sleep(for: .seconds(1))
+            }
+        }
+        jitterTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.updateMeterJitter()
+                try? await Task.sleep(for: .milliseconds(220))
             }
         }
     }
@@ -211,7 +224,17 @@ final class RadioViewModel {
     func stop() {
         pollTask?.cancel()
         pollTask = nil
+        jitterTask?.cancel()
+        jitterTask = nil
         if let m = scrollMonitor { NSEvent.removeMonitor(m); scrollMonitor = nil }
+        if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
+    }
+
+    private var jitterTask: Task<Void, Never>?
+
+    private func updateMeterJitter() {
+        let magnitude = rigOnline ? max(0, (35 - smeter) / 35) * 3.5 : 5.5
+        meterJitter = Double.random(in: -magnitude...magnitude)
     }
 
     // MARK: - Mouse-wheel tuning (over the dial or tuning knob)
@@ -251,6 +274,46 @@ final class RadioViewModel {
             self?.endTuneGesture()
         }
         return true
+    }
+
+    // MARK: - Keyboard tuning (← → fine step, ↑ ↓ jump to next/previous station)
+
+    private var keyMonitor: Any?
+
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            let keyCode = event.keyCode
+            let isTextEditing = (NSApp.keyWindow?.firstResponder as? NSText) != nil
+            let consumed = MainActor.assumeIsolated { self.handleKeyDown(keyCode: keyCode, isTextEditing: isTextEditing) }
+            return consumed ? nil : event
+        }
+    }
+
+    /// Returns true when the key press was used to tune (and should be consumed).
+    /// Arrow keys are left alone while a text field is being edited, so cursor
+    /// movement in the search box etc. isn't hijacked.
+    private func handleKeyDown(keyCode: UInt16, isTextEditing: Bool) -> Bool {
+        guard !isTextEditing else { return false }
+        switch keyCode {
+        case 123: nudge(byKHz: -scrollStepKHz); return true // Left
+        case 124: nudge(byKHz: scrollStepKHz); return true  // Right
+        case 126: nextStation(); return true                // Up
+        case 125: previousStation(); return true            // Down
+        default: return false
+        }
+    }
+
+    /// Jumps to the next/previous station in the filtered, frequency-sorted list.
+    func nextStation() {
+        guard let next = displayedStations.first(where: { $0.freqKHz > currentFreqKHz + 0.01 }) else { return }
+        tune(toKHz: next.freqKHz)
+    }
+
+    func previousStation() {
+        guard let prev = displayedStations.last(where: { $0.freqKHz < currentFreqKHz - 0.01 }) else { return }
+        tune(toKHz: prev.freqKHz)
     }
 
     private var client: FlrigClient {
