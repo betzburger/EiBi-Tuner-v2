@@ -18,7 +18,10 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Theme.cabinet.ignoresSafeArea()
+            Image("OakGrain")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .ignoresSafeArea()
             woodGrain.ignoresSafeArea()
 
             VStack(spacing: 14) {
