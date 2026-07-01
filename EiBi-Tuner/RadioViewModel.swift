@@ -98,10 +98,11 @@ final class RadioViewModel {
 
     // MARK: - Appearance (persisted)
 
-    /// Selected colour variant; swapping it repaints the whole UI.
-    var themeVariant: ThemeVariant = .amber {
+    /// Selected cabinet variant (wood/amber or metal/blue); swapping it
+    /// repaints the whole UI.
+    var themeVariant: ThemeVariant = .wood {
         didSet {
-            Theme.current = themeVariant.palette
+            Theme.currentVariant = themeVariant
             UserDefaults.standard.set(themeVariant.rawValue, forKey: "themeVariant")
         }
     }
@@ -187,7 +188,7 @@ final class RadioViewModel {
         if let tv = ThemeVariant(rawValue: defaults.string(forKey: "themeVariant") ?? "") {
             themeVariant = tv
         }
-        Theme.current = themeVariant.palette
+        Theme.currentVariant = themeVariant
         if let ms = MeterStyle(rawValue: defaults.string(forKey: "meterStyle") ?? "") {
             meterStyle = ms
         }

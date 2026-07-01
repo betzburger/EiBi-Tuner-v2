@@ -2,16 +2,17 @@
 //  RadioTheme.swift
 //  EiBi-Tuner
 //
-//  Shared palette, gradients and reusable "hardware" pieces (brass bezel,
-//  glass reflection, cabinet screws) that give every view the same warm,
-//  amber-backlit valve-radio look.
+//  Shared palette, gradients and reusable "hardware" pieces (bezel, glass
+//  reflection, cabinet screws) that give every view the same backlit
+//  valve-radio look. Two cabinets are available (RadioViewModel.themeVariant):
+//  a warm amber-backlit wood cabinet with brass trim, and a cool blue-backlit
+//  brushed-metal cabinet with silver trim.
 //
 
 import SwiftUI
 
 /// The interchangeable part of the look: the accent ("backlight") colour family
-/// and the dial glow. The cabinet, brass and ivory stay shared across variants
-/// so every palette feels like the same radio with a different tube colour.
+/// and the dial glow.
 nonisolated struct ThemePalette: Sendable {
     let amber, amberBright, amberDeep, amberDim, activeGlow: Color
 
@@ -29,46 +30,104 @@ extension ThemePalette {
         amberDim:    Color(red: 0.62, green: 0.36, blue: 0.12),
         activeGlow:  Color(red: 1.00, green: 0.82, blue: 0.30))
 
-    static let green = ThemePalette(
-        amber:       Color(red: 0.46, green: 0.92, blue: 0.55),
-        amberBright: Color(red: 0.74, green: 1.00, blue: 0.80),
-        amberDeep:   Color(red: 0.16, green: 0.55, blue: 0.24),
-        amberDim:    Color(red: 0.26, green: 0.55, blue: 0.30),
-        activeGlow:  Color(red: 0.62, green: 1.00, blue: 0.66))
-
     static let blue = ThemePalette(
         amber:       Color(red: 0.40, green: 0.74, blue: 1.00),
         amberBright: Color(red: 0.72, green: 0.89, blue: 1.00),
         amberDeep:   Color(red: 0.13, green: 0.40, blue: 0.72),
         amberDim:    Color(red: 0.26, green: 0.46, blue: 0.70),
         activeGlow:  Color(red: 0.56, green: 0.86, blue: 1.00))
-
-    static let red = ThemePalette(
-        amber:       Color(red: 1.00, green: 0.46, blue: 0.40),
-        amberBright: Color(red: 1.00, green: 0.68, blue: 0.58),
-        amberDeep:   Color(red: 0.66, green: 0.18, blue: 0.13),
-        amberDim:    Color(red: 0.62, green: 0.26, blue: 0.20),
-        activeGlow:  Color(red: 1.00, green: 0.56, blue: 0.46))
 }
 
-/// User-selectable colour variants (persisted; see RadioViewModel.themeVariant).
+/// User-selectable cabinet variants (persisted; see RadioViewModel.themeVariant).
+/// Each bundles an accent colour family with a cabinet material: wood cabinet
+/// + brass trim + amber backlight, or brushed-metal cabinet + silver trim +
+/// blue backlight.
 nonisolated enum ThemeVariant: String, CaseIterable, Identifiable, Sendable {
-    case amber, green, blue, red
+    case wood, metal
     var id: String { rawValue }
+
     var palette: ThemePalette {
         switch self {
-        case .amber: return .amber
-        case .green: return .green
-        case .blue:  return .blue
-        case .red:   return .red
+        case .wood:  return .amber
+        case .metal: return .blue
         }
     }
+
     var label: String {
         switch self {
-        case .amber: return "Amber"
-        case .green: return "Green"
-        case .blue:  return "Blue"
-        case .red:   return "Red"
+        case .wood:  return AppLanguage.t("Holz", "Wood")
+        case .metal: return AppLanguage.t("Metall", "Metal")
+        }
+    }
+
+    /// Cabinet background texture asset name.
+    var cabinetImageName: String {
+        switch self {
+        case .wood:  return "OakGrain"
+        case .metal: return "BrushedMetal"
+        }
+    }
+
+    /// Bezel/trim gradient around dials and panels: brass for the wood
+    /// cabinet, brushed silver for the metal one.
+    var bezel: LinearGradient {
+        switch self {
+        case .wood:
+            return LinearGradient(colors: [
+                Color(red: 0.88, green: 0.76, blue: 0.46),
+                Color(red: 0.55, green: 0.43, blue: 0.21),
+                Color(red: 0.82, green: 0.68, blue: 0.40),
+                Color(red: 0.40, green: 0.30, blue: 0.14),
+            ], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .metal:
+            return LinearGradient(colors: [
+                Color(red: 0.93, green: 0.94, blue: 0.96),
+                Color(red: 0.55, green: 0.58, blue: 0.62),
+                Color(red: 0.86, green: 0.88, blue: 0.91),
+                Color(red: 0.40, green: 0.43, blue: 0.47),
+            ], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+
+    /// Thin trim colour used for strokes/dividers matching `bezel`.
+    var bezelLine: Color {
+        switch self {
+        case .wood:  return Color(red: 0.34, green: 0.26, blue: 0.13)
+        case .metal: return Color(red: 0.52, green: 0.55, blue: 0.58)
+        }
+    }
+
+    /// Background for popover-style secondary windows (Band/Preset/Help).
+    var cabinet: LinearGradient {
+        switch self {
+        case .wood:
+            return LinearGradient(colors: [
+                Color(red: 0.26, green: 0.16, blue: 0.10),
+                Color(red: 0.16, green: 0.095, blue: 0.055),
+                Color(red: 0.09, green: 0.05, blue: 0.028),
+            ], startPoint: .top, endPoint: .bottom)
+        case .metal:
+            return LinearGradient(colors: [
+                Color(red: 0.22, green: 0.23, blue: 0.25),
+                Color(red: 0.13, green: 0.14, blue: 0.155),
+                Color(red: 0.06, green: 0.065, blue: 0.075),
+            ], startPoint: .top, endPoint: .bottom)
+        }
+    }
+
+    /// Background fill for opaque instrument panels (control panel, help sidebar).
+    var cabinetPanel: LinearGradient {
+        switch self {
+        case .wood:
+            return LinearGradient(colors: [
+                Color(red: 0.20, green: 0.125, blue: 0.075),
+                Color(red: 0.115, green: 0.07, blue: 0.04),
+            ], startPoint: .top, endPoint: .bottom)
+        case .metal:
+            return LinearGradient(colors: [
+                Color(red: 0.16, green: 0.17, blue: 0.185),
+                Color(red: 0.09, green: 0.095, blue: 0.105),
+            ], startPoint: .top, endPoint: .bottom)
         }
     }
 }
@@ -81,9 +140,10 @@ nonisolated enum MeterStyle: String, CaseIterable, Sendable {
 
 enum Theme {
 
-    /// The active palette. Swapped by RadioViewModel.themeVariant (always on the
-    /// main thread); views re-read it when the tree re-renders.
-    nonisolated(unsafe) static var current: ThemePalette = .amber
+    /// The active cabinet variant. Swapped by RadioViewModel.themeVariant
+    /// (always on the main thread); views re-read it when the tree re-renders.
+    nonisolated(unsafe) static var currentVariant: ThemeVariant = .wood
+    nonisolated static var current: ThemePalette { currentVariant.palette }
 
     // MARK: Colours (accent family forwards to the active palette)
     nonisolated static var amber: Color       { current.amber }
@@ -95,10 +155,10 @@ enum Theme {
     static let dialInk     = Color(red: 0.05, green: 0.040, blue: 0.022)
     static let dialInk2    = Color(red: 0.10, green: 0.075, blue: 0.035)
 
-    /// A fixed "on-air" yellow, independent of the selected colour theme — the
+    /// A fixed "on-air" yellow, independent of the selected cabinet — the
     /// station list uses this (rather than `activeGlow`) so a tuned, on-air
-    /// station always reads as yellow, even in the blue/green/red variants
-    /// where `activeGlow` is just a lighter tint of the accent colour.
+    /// station always reads as yellow, even in the metal/blue variant where
+    /// `activeGlow` is just a lighter tint of the accent colour.
     static let onAirYellow = Color(red: 1.00, green: 0.85, blue: 0.20)
 
     static let ivory       = Color(red: 0.93, green: 0.89, blue: 0.80)
@@ -106,38 +166,18 @@ enum Theme {
     static let pointer     = Color(red: 0.93, green: 0.27, blue: 0.18)
 
     static let brass       = Color(red: 0.78, green: 0.64, blue: 0.36)
-    static let brassDark   = Color(red: 0.34, green: 0.26, blue: 0.13)
 
-    // MARK: Gradients
-    static let cabinet = LinearGradient(
-        colors: [
-            Color(red: 0.26, green: 0.16, blue: 0.10),
-            Color(red: 0.16, green: 0.095, blue: 0.055),
-            Color(red: 0.09, green: 0.05, blue: 0.028),
-        ],
-        startPoint: .top, endPoint: .bottom)
-
-    static let cabinetPanel = LinearGradient(
-        colors: [
-            Color(red: 0.20, green: 0.125, blue: 0.075),
-            Color(red: 0.115, green: 0.07, blue: 0.04),
-        ],
-        startPoint: .top, endPoint: .bottom)
+    // MARK: Gradients (bezel/cabinet colours forward to the active variant)
+    nonisolated static var cabinet: LinearGradient      { currentVariant.cabinet }
+    nonisolated static var cabinetPanel: LinearGradient { currentVariant.cabinetPanel }
+    nonisolated static var brassBezel: LinearGradient   { currentVariant.bezel }
+    nonisolated static var brassDark: Color             { currentVariant.bezelLine }
 
     static let dialBackdrop = RadialGradient(
         colors: [dialInk2, dialInk, Color.black],
         center: .center, startRadius: 4, endRadius: 520)
 
     nonisolated static var amberLamp: RadialGradient { current.lamp }
-
-    static let brassBezel = LinearGradient(
-        colors: [
-            Color(red: 0.88, green: 0.76, blue: 0.46),
-            Color(red: 0.55, green: 0.43, blue: 0.21),
-            Color(red: 0.82, green: 0.68, blue: 0.40),
-            Color(red: 0.40, green: 0.30, blue: 0.14),
-        ],
-        startPoint: .topLeading, endPoint: .bottomTrailing)
 
     static let metalKnob = LinearGradient(
         colors: [ivory, ivoryDark, Color(red: 0.55, green: 0.50, blue: 0.40)],

@@ -18,7 +18,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Image("OakGrain")
+            Image(vm.themeVariant.cabinetImageName)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
