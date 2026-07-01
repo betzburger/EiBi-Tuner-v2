@@ -21,6 +21,8 @@ struct ContentView: View {
             Image("OakGrain")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
                 .ignoresSafeArea()
             woodGrain.ignoresSafeArea()
 
@@ -174,6 +176,9 @@ private struct ThemeMenu: View {
                         .fill(.black.opacity(0.3))
                         .overlay(RoundedRectangle(cornerRadius: 5)
                             .strokeBorder(Theme.brassDark, lineWidth: 1)))
+                // Opaque backer so the cabinet's wood grain behind the bar
+                // can't show through the translucent fill above.
+                .background(RoundedRectangle(cornerRadius: 5).fill(Theme.dialInk))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -197,6 +202,10 @@ private struct MeterToggle: View {
                 .fill(.black.opacity(0.35))
                 .overlay(RoundedRectangle(cornerRadius: 7)
                     .strokeBorder(Theme.brassDark, lineWidth: 1)))
+        // Opaque backer so the cabinet's wood grain can't show through the
+        // translucent fill above — this sits directly on the cabinet, not
+        // on one of the panels' own opaque backgrounds.
+        .background(RoundedRectangle(cornerRadius: 7).fill(Theme.dialInk))
     }
 
     private func segment(_ label: String, _ style: MeterStyle) -> some View {
@@ -239,6 +248,9 @@ private struct ModeButton: View {
                             .strokeBorder(.black.opacity(0.4), lineWidth: 1))
                         .shadow(color: isActive ? Theme.amber.opacity(0.7) : .clear, radius: 5)
                 )
+                // Opaque backer so the cabinet's wood grain can't show
+                // through the translucent inactive-state fill above.
+                .background(RoundedRectangle(cornerRadius: 5).fill(Theme.dialInk))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
