@@ -221,7 +221,7 @@ struct DialScaleView: View {
 
     private func tint(for hl: RadioViewModel.Highlight) -> Color {
         switch hl {
-        case .active:      return Theme.activeGlow
+        case .active:      return Theme.onAirYellow
         case .onFrequency: return .white
         case .normal:      return Theme.amber.opacity(0.85)
         }
