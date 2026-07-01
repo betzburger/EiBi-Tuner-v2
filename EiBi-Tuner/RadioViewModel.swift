@@ -586,6 +586,22 @@ final class RadioViewModel {
         displayedStations.contains { abs($0.freqKHz - currentFreqKHz) < 0.01 }
     }
 
+    /// The station in `displayedStations` closest to `khz`. The array is kept
+    /// frequency-sorted, so this is a binary search — cheap enough to call on
+    /// every tuning update (including continuous drag) to keep the station
+    /// list scrolled to the dial frequency.
+    func nearestStation(toKHz khz: Double) -> Station? {
+        guard !displayedStations.isEmpty else { return nil }
+        var lo = 0, hi = displayedStations.count - 1
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if displayedStations[mid].freqKHz < khz { lo = mid + 1 } else { hi = mid }
+        }
+        guard lo > 0 else { return displayedStations[lo] }
+        let prev = displayedStations[lo - 1], cur = displayedStations[lo]
+        return abs(prev.freqKHz - khz) <= abs(cur.freqKHz - khz) ? prev : cur
+    }
+
     // MARK: - Filtering
 
     private func recomputeDisplayed() {

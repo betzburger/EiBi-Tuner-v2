@@ -6,13 +6,15 @@
 //  one single-line row each, freely scrollable across the whole spectrum.
 //  White-glowing row = on the dial frequency, amber/yellow-glowing = on the
 //  air right now (ports the grey/yellow highlight rule of
-//  update_view_mode_display). Click a row to tune FLRIG to it.
+//  update_view_mode_display). Click a row to tune FLRIG to it; the list
+//  auto-scrolls to whichever station sits closest to the dial frequency.
 //
 
 import SwiftUI
 
 struct StationStackView: View {
     @Bindable var vm: RadioViewModel
+    @State private var centeredStationID: Station.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -35,13 +37,18 @@ struct StationStackView: View {
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(spacing: 2) {
-                        ForEach(vm.displayedStations) { st in
-                            StationRow(station: st, highlight: vm.highlight(for: st))
-                                .onTapGesture { vm.tune(toKHz: st.freqKHz) }
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVStack(spacing: 2) {
+                            ForEach(vm.displayedStations) { st in
+                                StationRow(station: st, highlight: vm.highlight(for: st))
+                                    .id(st.id)
+                                    .onTapGesture { vm.tune(toKHz: st.freqKHz) }
+                            }
                         }
                     }
+                    .onAppear { centerOnCurrent(proxy, animated: false) }
+                    .onChange(of: vm.currentFreqKHz) { _, _ in centerOnCurrent(proxy) }
                 }
             }
             Spacer(minLength: 0)
@@ -55,6 +62,20 @@ struct StationStackView: View {
         )
         .overlay(GlassReflection(corner: 12))
         .overlay(BrassBezel(corner: 14, line: 8))
+    }
+
+    /// Scrolls to whichever station is closest to the dial frequency, but
+    /// only when that target actually changes — skips redundant scrollTo
+    /// calls while the dial is continuously dragged within one station's span.
+    private func centerOnCurrent(_ proxy: ScrollViewProxy, animated: Bool = true) {
+        guard let nearest = vm.nearestStation(toKHz: vm.currentFreqKHz),
+              nearest.id != centeredStationID else { return }
+        centeredStationID = nearest.id
+        if animated {
+            withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(nearest.id, anchor: .center) }
+        } else {
+            proxy.scrollTo(nearest.id, anchor: .center)
+        }
     }
 }
 
