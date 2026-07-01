@@ -167,10 +167,23 @@ struct DialScaleView: View {
         for st in visible { byFreq[st.freqKHz, default: []].append(st) }
         var capped: [Station] = []
         for (_, group) in byFreq {
-            if group.count <= maxLanes {
-                capped.append(contentsOf: group)
+            // The same station is often listed several times at one frequency
+            // for different time slots (e.g. different target areas by hour).
+            // The dial only needs one plate per name; the full list still
+            // shows every entry. Prefer whichever occurrence is on air now.
+            var byName: [String: Station] = [:]
+            for st in group {
+                if let existing = byName[st.station], rank(vm.highlight(for: st)) <= rank(vm.highlight(for: existing)) {
+                    continue
+                }
+                byName[st.station] = st
+            }
+            let deduped = Array(byName.values)
+
+            if deduped.count <= maxLanes {
+                capped.append(contentsOf: deduped)
             } else {
-                let ranked = group.sorted { a, b in
+                let ranked = deduped.sorted { a, b in
                     let ra = rank(vm.highlight(for: a)), rb = rank(vm.highlight(for: b))
                     return ra != rb ? ra > rb : a.station < b.station
                 }
