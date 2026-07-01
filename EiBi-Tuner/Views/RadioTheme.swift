@@ -130,6 +130,31 @@ nonisolated enum ThemeVariant: String, CaseIterable, Identifiable, Sendable {
             ], startPoint: .top, endPoint: .bottom)
         }
     }
+
+    /// Label/legend colour: warm ivory on the wood cabinet, cool silver-white
+    /// on the metal one — every button and panel label picks this up via
+    /// `Theme.ivory` so text reads as "metal" too, not just the bezels.
+    var ivory: Color {
+        switch self {
+        case .wood:  return Color(red: 0.93, green: 0.89, blue: 0.80)
+        case .metal: return Color(red: 0.88, green: 0.90, blue: 0.93)
+        }
+    }
+
+    var ivoryDark: Color {
+        switch self {
+        case .wood:  return Color(red: 0.74, green: 0.69, blue: 0.58)
+        case .metal: return Color(red: 0.62, green: 0.65, blue: 0.69)
+        }
+    }
+
+    /// Deepest metal-knob/screw shadow tone.
+    var metalDeep: Color {
+        switch self {
+        case .wood:  return Color(red: 0.55, green: 0.50, blue: 0.40)
+        case .metal: return Color(red: 0.38, green: 0.41, blue: 0.45)
+        }
+    }
 }
 
 /// Which signal indicator is shown: the moving-coil S-meter or the green
@@ -161,8 +186,8 @@ enum Theme {
     /// `activeGlow` is just a lighter tint of the accent colour.
     static let onAirYellow = Color(red: 1.00, green: 0.85, blue: 0.20)
 
-    static let ivory       = Color(red: 0.93, green: 0.89, blue: 0.80)
-    static let ivoryDark   = Color(red: 0.74, green: 0.69, blue: 0.58)
+    nonisolated static var ivory: Color     { currentVariant.ivory }
+    nonisolated static var ivoryDark: Color { currentVariant.ivoryDark }
     static let pointer     = Color(red: 0.93, green: 0.27, blue: 0.18)
 
     static let brass       = Color(red: 0.78, green: 0.64, blue: 0.36)
@@ -179,9 +204,10 @@ enum Theme {
 
     nonisolated static var amberLamp: RadialGradient { current.lamp }
 
-    static let metalKnob = LinearGradient(
-        colors: [ivory, ivoryDark, Color(red: 0.55, green: 0.50, blue: 0.40)],
-        startPoint: .topLeading, endPoint: .bottomTrailing)
+    nonisolated static var metalKnob: LinearGradient {
+        LinearGradient(colors: [ivory, ivoryDark, currentVariant.metalDeep],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 
     static let glass = LinearGradient(
         colors: [.white.opacity(0.16), .white.opacity(0.03), .clear, .white.opacity(0.05)],
@@ -227,7 +253,7 @@ struct Screw: View {
     var body: some View {
         Circle()
             .fill(
-                RadialGradient(colors: [Theme.ivoryDark, Color(red: 0.4, green: 0.36, blue: 0.28)],
+                RadialGradient(colors: [Theme.ivoryDark, Theme.currentVariant.metalDeep],
                                center: .topLeading, startRadius: 0, endRadius: 10))
             .overlay(
                 Rectangle().fill(.black.opacity(0.5))

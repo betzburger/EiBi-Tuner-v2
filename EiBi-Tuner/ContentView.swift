@@ -169,6 +169,10 @@ private struct ThemeMenu: View {
         } label: {
             Image(systemName: "paintpalette.fill")
                 .font(.system(size: 14, weight: .semibold))
+                // On macOS, Menu labels that are just an Image otherwise get
+                // a system template tint that ignores foregroundStyle —
+                // .palette rendering mode forces our colour to stick.
+                .symbolRenderingMode(.palette)
                 .foregroundStyle(Theme.amber)
                 .frame(width: 34, height: 26)
                 .background(
