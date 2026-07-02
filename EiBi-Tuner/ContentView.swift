@@ -17,6 +17,32 @@ struct ContentView: View {
     @State private var didWarmUp = false
 
     var body: some View {
+        // Letterbox the fixed-aspect cabinet inside whatever space the window
+        // gives us. In the normal window this exactly fills the space (the
+        // window itself is locked to the cabinet's aspect ratio), but in
+        // fullscreen — where the screen rarely matches that ratio — this pads
+        // the excess with black bars instead of stretching the artwork.
+        GeometryReader { proxy in
+            let fittedWidth = min(proxy.size.width, proxy.size.height * CabinetAspect.ratio)
+            let fittedHeight = fittedWidth / CabinetAspect.ratio
+
+            ZStack {
+                Color.black.ignoresSafeArea()
+                cabinet.frame(width: fittedWidth, height: fittedHeight)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .frame(minWidth: CabinetAspect.width, minHeight: CabinetAspect.height)
+        .alert("Load error", isPresented: Binding(
+            get: { vm.loadError != nil },
+            set: { if !$0 { vm.loadError = nil } })) {
+            Button("OK", role: .cancel) { vm.loadError = nil }
+        } message: {
+            Text(vm.loadError ?? "")
+        }
+    }
+
+    private var cabinet: some View {
         ZStack {
             Image(vm.themeVariant.cabinetImageName)
                 .resizable()
@@ -43,14 +69,6 @@ struct ContentView: View {
         // view (including purely decorative ones) picks up the new palette.
         .id(vm.themeVariant)
         .onAppear { if !didWarmUp { didWarmUp = true; warmUp() } }
-        .frame(minWidth: 960, minHeight: 840)
-        .alert("Load error", isPresented: Binding(
-            get: { vm.loadError != nil },
-            set: { if !$0 { vm.loadError = nil } })) {
-            Button("OK", role: .cancel) { vm.loadError = nil }
-        } message: {
-            Text(vm.loadError ?? "")
-        }
     }
 
     /// Everything below the brand bar — the part that warms up / dims.
