@@ -9,6 +9,14 @@
 import SwiftUI
 import AppKit
 
+/// The cabinet's fixed design size: also its aspect ratio (window resizing is
+/// locked to this ratio) and its minimum window size.
+enum CabinetAspect {
+    static let width: CGFloat = 1140
+    static let height: CGFloat = 880
+    static var ratio: CGFloat { width / height }
+}
+
 @main
 struct EiBiTunerApp: App {
     @State private var vm = RadioViewModel()
@@ -19,7 +27,7 @@ struct EiBiTunerApp: App {
                 .onAppear { vm.start() }
                 .background(WindowConfigurator())
         }
-        .defaultSize(width: 1140, height: 880)
+        .defaultSize(width: CabinetAspect.width, height: CabinetAspect.height)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(after: .newItem) {
@@ -74,6 +82,16 @@ private struct WindowConfigurator: NSViewRepresentable {
             window.isMovableByWindowBackground = false
             // Single fresh window per launch (no duplicate from state restoration).
             window.isRestorable = false
+            // Launch size doubles as the hard floor, and AppKit keeps that exact
+            // aspect ratio locked while dragging any edge/corner larger. Setting
+            // this once and never touching it again also matters: toggling it
+            // from a windowWillEnter/didExitFullScreen hook (delegate- or
+            // notification-based) reliably left the window stuck unable to
+            // leave fullscreen again — AppKit is fine with the constraint being
+            // simply present throughout the whole fullscreen lifecycle.
+            let launchSize = NSSize(width: CabinetAspect.width, height: CabinetAspect.height)
+            window.contentMinSize = launchSize
+            window.contentAspectRatio = launchSize
         }
         return v
     }
