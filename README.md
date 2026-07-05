@@ -36,6 +36,13 @@ Built with SwiftUI for macOS 14+.
 4. Open a schedule via **Open Schedule…** (or ⌘O).
 5. Tune away — drag the dial, use the knob, scroll, or click a station.
 
+## Tipps
+Limit the number of displayed stations to those who are important you
+1. If you live in the EU, enter 'eu' in the **TARGET** field to show only those stations that target your area
+2. Push the **ACTIVE** button to only show those stations that are live at the moment
+3. If you enter part of the station name in the **SEARCH** field, you only see these stations, like 'dwd' for German weather service.
+4. Double click on a name in the list and your receiver is tuned to that station.
+
 See the in-app Help window (the **HELP** button, or the Help menu) for the full control reference.
 
 ## Building from the command line
